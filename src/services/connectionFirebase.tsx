@@ -5,13 +5,18 @@ import { getDatabase } from "firebase/database";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyB5VNyyQ1fny44O1Yd2B1tJy5li7KXl9GQ",
-  authDomain: "piscicultura-app-244f6.firebaseapp.com",
-  databaseURL: "https://piscicultura-app-244f6-default-rtdb.firebaseio.com",
-  projectId: "piscicultura-app-244f6",
-  storageBucket: "piscicultura-app-244f6.appspot.com",
-  messagingSenderId: "758916070691",
-  appId: "1:758916070691:web:ce934ac8c5469a2083a096"
+  apiKey: "AIzaSyDogZFYiafDGay3Bvd1EzXFVdBQVZ4LyTk",
+
+  authDomain: "sneaker-store-app-60c23.firebaseapp.com",
+
+  projectId: "sneaker-store-app-60c23",
+
+  storageBucket: "sneaker-store-app-60c23.firebasestorage.app",
+
+  messagingSenderId: "759471234154",
+
+  appId: "1:759471234154:web:8763d1e7ad96c7575f3e13"
+
 };
 
 

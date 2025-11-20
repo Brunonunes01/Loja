@@ -1,4 +1,4 @@
-import { FontAwesome5, Ionicons } from '@expo/vector-icons'; // <-- 1. MODIFICADO
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { onValue, ref } from "firebase/database";
@@ -20,18 +20,20 @@ import {
 import { RootStackParamList } from "../../app/(tabs)";
 import { auth, database } from "../services/connectionFirebase";
 
+// A rota agora usa o novo tipo definido em index.tsx
 type NavigationProps = StackNavigationProp<RootStackParamList, "Dashboard">;
 
 const { width, height } = Dimensions.get('window');
 
 // ==================== INTERFACES ====================
+// Usamos o nome Order internamente, mas semanticamente agora é Venda
 interface Order {
   id: string;
   cliente: string;
-  produto: string;
+  produto: string; // SKU: Modelo + Tamanho + Cor
   quantidade: number;
   valor: number;
-  status: 'pendente' | 'processando' | 'concluido' | 'cancelado';
+  status: 'pendente' | 'processando' | 'enviado' | 'entregue' | 'cancelado';
   dataEntrega: string;
   timestamp: number;
 }
@@ -42,7 +44,7 @@ interface ActionCardProps {
   onPress: () => void;
   gradient: string[];
   value?: number;
-  iconFamily?: string; // <-- 2. ADICIONADO
+  iconFamily?: string;
 }
 
 interface QuickStatProps {
@@ -50,7 +52,7 @@ interface QuickStatProps {
   value: number | string;
   icon: any;
   color: string;
-  iconFamily?: string; // <-- 2. ADICIONADO
+  iconFamily?: string;
 }
 
 interface MenuItemProps {
@@ -58,7 +60,7 @@ interface MenuItemProps {
   title: string;
   onPress: () => void;
   badge?: number;
-  iconFamily?: string; // <-- 2. ADICIONADO
+  iconFamily?: string;
 }
 
 // ==================== COMPONENTE PRINCIPAL ====================
@@ -66,6 +68,8 @@ export default function DashboardScreen() {
   const navigation = useNavigation<NavigationProps>();
   const user = auth.currentUser;
   
+  // As chaves 'tanks', 'lots', 'peixes', 'pedidos' representam agora
+  // Lojas, Estoque, Produtos e Vendas, respectivamente, na estrutura do DB.
   const [summary, setSummary] = useState({ tanks: 0, lots: 0, peixes: 0, pedidos: 0 });
   const [orders, setOrders] = useState<Order[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,6 +86,7 @@ export default function DashboardScreen() {
   useEffect(() => {
     if (!user) return;
     
+    // Nomes dos nós no DB são mantidos para reutilizar a estrutura de dados existente
     const tanksRef = ref(database, `users/${user.uid}/tanks`);
     const lotsRef = ref(database, `users/${user.uid}/lots`);
     const peixesRef = ref(database, `users/${user.uid}/peixes`);
@@ -133,6 +138,7 @@ export default function DashboardScreen() {
     }
   };
 
+  // Rota é adaptada para aceitar as novas rotas do e-commerce
   const navigateTo = (screen: keyof RootStackParamList, params?: any) => {
     setMenuVisible(false);
     setTimeout(() => {
@@ -149,7 +155,6 @@ export default function DashboardScreen() {
 
   // ==================== COMPONENTES ====================
   
-  // <-- 3.A COMPONENTE MODIFICADO -->
   const ActionCard = ({ title, icon, onPress, gradient, value, iconFamily = 'Ionicons' }: ActionCardProps) => {
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -189,7 +194,6 @@ export default function DashboardScreen() {
           <View style={styles.actionCardLayout}>
             <View style={styles.actionCardLeft}>
               <View style={styles.modernIconContainer}>
-                {/* Lógica condicional do ícone */}
                 {iconFamily === 'FontAwesome5' ? (
                   <FontAwesome5 name={icon} size={26} color="#fff" />
                 ) : (
@@ -217,7 +221,6 @@ export default function DashboardScreen() {
     );
   };
 
-  // <-- 3.B COMPONENTE MODIFICADO -->
   const QuickStat = ({ title, value, icon, color, iconFamily = 'Ionicons' }: QuickStatProps) => {
     const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -255,7 +258,6 @@ export default function DashboardScreen() {
               }
             ]}
           >
-            {/* Lógica condicional do ícone */}
             {iconFamily === 'FontAwesome5' ? (
               <FontAwesome5 name={icon} size={22} color={color} />
             ) : (
@@ -274,7 +276,6 @@ export default function DashboardScreen() {
     );
   };
 
-  // <-- 3.C COMPONENTE MODIFICADO -->
   const MenuItem = ({ icon, title, onPress, badge, iconFamily = 'Ionicons' }: MenuItemProps) => {
     const [isPressed, setIsPressed] = useState(false);
     
@@ -291,7 +292,6 @@ export default function DashboardScreen() {
         <View style={styles.menuItemLayout}>
           <View style={styles.menuItemLeft}>
             <View style={styles.modernMenuIconBox}>
-              {/* Lógica condicional do ícone */}
               {iconFamily === 'FontAwesome5' ? (
                 <FontAwesome5 name={icon} size={20} color="#0EA5E9" />
               ) : (
@@ -335,9 +335,15 @@ export default function DashboardScreen() {
           icon: 'sync-outline',
           bg: 'rgba(14, 165, 233, 0.12)'
         },
-        concluido: { 
+        enviado: { 
+          color: '#8B5CF6', 
+          label: 'Enviado', 
+          icon: 'paper-plane-outline',
+          bg: 'rgba(139, 92, 246, 0.12)'
+        },
+        entregue: { 
           color: '#10B981', 
-          label: 'Concluído', 
+          label: 'Entregue', 
           icon: 'checkmark-circle-outline',
           bg: 'rgba(16, 185, 129, 0.12)'
         },
@@ -358,6 +364,7 @@ export default function DashboardScreen() {
         <View style={styles.orderCardHeader}>
           <View style={styles.orderCardHeaderLeft}>
             <Text style={styles.modernOrderClient}>{item.cliente}</Text>
+            {/* O produto é agora o SKU do tênis */}
             <Text style={styles.modernOrderProduct}>{item.produto}</Text>
           </View>
           <View style={[styles.modernStatusPill, { backgroundColor: config.bg }]}>
@@ -375,7 +382,7 @@ export default function DashboardScreen() {
             <View style={styles.orderInfoIconBox}>
               <Ionicons name="cube-outline" size={14} color="#0EA5E9" />
             </View>
-            <Text style={styles.modernOrderInfoText}>{item.quantidade} kg</Text>
+            <Text style={styles.modernOrderInfoText}>{item.quantidade} pares</Text>
           </View>
           
           <View style={styles.modernOrderInfoItem}>
@@ -409,6 +416,7 @@ export default function DashboardScreen() {
     );
   }
 
+  // Pedidos Pendentes e Processando agora são 'pendente' e 'processando'
   const pendingOrders = orders.filter(o => o.status === 'pendente' || o.status === 'processando').length;
 
   return (
@@ -436,10 +444,10 @@ export default function DashboardScreen() {
             
             <View style={styles.headerCenterContent}>
               <View style={styles.logoContainer}>
-                <Ionicons name="water" size={22} color="#0EA5E9" />
-                <Text style={styles.modernHeaderTitle}>FishUp</Text>
+                <Ionicons name="shoe-box" size={22} color="#0EA5E9" /> {/* NOVO ÍCONE */}
+                <Text style={styles.modernHeaderTitle}>SneakerUp</Text> {/* NOVO NOME */}
               </View>
-              <Text style={styles.modernHeaderSubtitle}>Gestão Aquícola</Text>
+              <Text style={styles.modernHeaderSubtitle}>Gestão de Vendas</Text>
             </View>
             
             <Pressable 
@@ -447,7 +455,7 @@ export default function DashboardScreen() {
                 styles.modernHeaderButton,
                 pressed && styles.headerButtonPressed
               ]}
-              onPress={() => navigateTo("Pedidos")}
+              onPress={() => navigateTo("Vendas")} {/* NOVA ROTA */}
             >
               <Ionicons name="notifications-outline" size={24} color="#fff" />
               {pendingOrders > 0 && (
@@ -501,30 +509,33 @@ export default function DashboardScreen() {
             </View>
             
             <View style={styles.statsGrid}>
+              {/* ESTATÍSTICA 1: Tanques -> Lojas Ativas */}
               <QuickStat 
-                title="Tanques Ativos" 
+                title="Lojas Ativas" 
                 value={summary.tanks} 
-                icon="water" 
+                icon="storefront-outline" 
                 color="#0EA5E9"
               />
+              {/* ESTATÍSTICA 2: Lotes -> Estoque SKUs */}
               <QuickStat 
-                title="Lotes Cadastrados" 
+                title="Estoque SKUs" 
                 value={summary.lots} 
-                icon="fish" 
+                icon="cube-outline" 
                 color="#10B981"
               />
-              {/* <-- 4.A QuickStat MODIFICADO --> */}
+              {/* ESTATÍSTICA 3: Espécies -> Produtos (Modelos) */}
               <QuickStat 
-                title="Espécies" 
+                title="Produtos (Modelos)" 
                 value={summary.peixes} 
-                icon="dna"
-                iconFamily="FontAwesome5"
+                icon="pricetags-outline"
+                iconFamily="Ionicons"
                 color="#8B5CF6"
               />
+              {/* ESTATÍSTICA 4: Pedidos -> Vendas Total */}
               <QuickStat 
-                title="Pedidos Total" 
+                title="Vendas Total" 
                 value={summary.pedidos}
-                icon="receipt" 
+                icon="receipt-outline" 
                 color="#F59E0B"
               />
             </View>
@@ -543,47 +554,52 @@ export default function DashboardScreen() {
                 { transform: [{ translateY: cardsAnim }] }
               ]}
             >
+              {/* CARD 1: Tanques -> Lojas */}
               <ActionCard 
-                title="Tanques" 
-                icon="water" 
+                title="Lojas" 
+                icon="storefront-outline" 
                 gradient={['#0EA5E9', '#0284C7']} 
                 value={summary.tanks} 
-                onPress={() => navigateTo("Tanques")} 
+                onPress={() => navigateTo("Lojas")} {/* NOVA ROTA */}
               />
+              {/* CARD 2: Lotes -> Estoque SKU */}
               <ActionCard 
-                title="Lotes" 
-                icon="fish" 
+                title="Estoque SKU" 
+                icon="cube-outline" 
                 gradient={['#10B981', '#059669']} 
                 value={summary.lots} 
-                onPress={() => navigateTo("Lotes")} 
+                onPress={() => navigateTo("Estoque")} {/* NOVA ROTA */}
               />
-              {/* <-- 4.B ActionCard MODIFICADO --> */}
+              {/* CARD 3: Peixes -> Produtos */}
               <ActionCard 
-                title="Espécies" 
-                icon="dna"
-                iconFamily="FontAwesome5"
+                title="Produtos" 
+                icon="pricetags-outline"
+                iconFamily="Ionicons"
                 gradient={['#8B5CF6', '#7C3AED']} 
                 value={summary.peixes} 
-                onPress={() => navigateTo("Peixes")} 
+                onPress={() => navigateTo("Produtos")} {/* NOVA ROTA */}
               />
+              {/* CARD 4: Alimentação -> Relatórios Estoque */}
               <ActionCard 
-                title="Alimentação" 
-                icon="restaurant" 
+                title="Relatórios Estoque" 
+                icon="document-attach-outline" 
                 gradient={['#F59E0B', '#D97706']} 
-                onPress={() => navigateTo("Alimentacao")} 
+                onPress={() => navigateTo("RelatoriosEstoque")} {/* NOVA ROTA */}
               />
+              {/* CARD 5: Biometria -> Relatórios Vendas */}
               <ActionCard 
-                title="Biometria" 
-                icon="analytics" 
+                title="Relatórios Vendas" 
+                icon="analytics-outline" 
                 gradient={['#EC4899', '#DB2777']} 
-                onPress={() => navigateTo("Biometria")} 
+                onPress={() => navigateTo("RelatoriosVendas")} {/* NOVA ROTA */}
               />
+              {/* CARD 6: Pedidos -> Vendas */}
               <ActionCard 
-                title="Pedidos" 
-                icon="receipt" 
+                title="Vendas" 
+                icon="receipt-outline" 
                 gradient={['#14B8A6', '#0D9488']} 
                 value={pendingOrders} 
-                onPress={() => navigateTo("Pedidos")} 
+                onPress={() => navigateTo("Vendas")} {/* NOVA ROTA */}
               />
             </Animated.View>
           </View>
@@ -593,11 +609,11 @@ export default function DashboardScreen() {
             <View style={styles.modernOrdersSection}>
               <View style={styles.ordersSectionHeader}>
                 <View style={styles.sectionHeaderContainer}>
-                  <Text style={styles.modernSectionTitle}>Atividade Recente</Text>
+                  <Text style={styles.modernSectionTitle}>Atividade Recente (Vendas)</Text>
                   <View style={styles.sectionTitleUnderline} />
                 </View>
                 <Pressable 
-                  onPress={() => navigateTo("Pedidos")}
+                  onPress={() => navigateTo("Vendas")} {/* NOVA ROTA */}
                   style={({ pressed }) => [
                     styles.viewAllButton,
                     pressed && styles.viewAllButtonPressed
@@ -620,10 +636,10 @@ export default function DashboardScreen() {
                     styles.showMoreButton,
                     pressed && styles.showMoreButtonPressed
                   ]}
-                  onPress={() => navigateTo("Pedidos")}
+                  onPress={() => navigateTo("Vendas")} {/* NOVA ROTA */}
                 >
                   <Text style={styles.showMoreText}>
-                    Carregar mais {orders.length - 3} pedidos
+                    Carregar mais {orders.length - 3} vendas
                   </Text>
                   <Ionicons name="chevron-down" size={18} color="#64748B" />
                 </Pressable>
@@ -697,55 +713,55 @@ export default function DashboardScreen() {
                   </View>
                   
                   <View style={styles.modernMenuSection}>
-                    <Text style={styles.modernMenuSectionTitle}>GESTÃO</Text>
+                    <Text style={styles.modernMenuSectionTitle}>GESTÃO DE PRODUTOS</Text>
+                    {/* MENU ITEM 1: Tanques -> Lojas */}
                     <MenuItem 
-                      icon="water" 
-                      title="Tanques" 
+                      icon="storefront-outline" 
+                      title="Lojas" 
                       badge={summary.tanks} 
-                      onPress={() => navigateTo("Tanques")} 
+                      onPress={() => navigateTo("Lojas")} {/* NOVA ROTA */}
                     />
+                    {/* MENU ITEM 2: Lotes -> Estoque */}
                     <MenuItem 
-                      icon="fish" 
-                      title="Lotes" 
+                      icon="cube-outline" 
+                      title="Estoque" 
                       badge={summary.lots} 
-                      onPress={() => navigateTo("Lotes")} 
+                      onPress={() => navigateTo("Estoque")} {/* NOVA ROTA */}
                     />
-                    {/* <-- 4.C MenuItem MODIFICADO --> */}
+                    {/* MENU ITEM 3: Peixes -> Produtos */}
                     <MenuItem 
-                      icon="dna"
-                      iconFamily="FontAwesome5"
-                      title="Espécies" 
+                      icon="pricetags-outline"
+                      iconFamily="Ionicons"
+                      title="Produtos" 
                       badge={summary.peixes} 
-                      onPress={() => navigateTo("Peixes")} 
-                    />
-                    <MenuItem 
-                      icon="restaurant" 
-                      title="Alimentação" 
-                      onPress={() => navigateTo("Alimentacao")} 
+                      onPress={() => navigateTo("Produtos")} {/* NOVA ROTA */}
                     />
                   </View>
                   
                   <View style={styles.modernMenuSection}>
                     <Text style={styles.modernMenuSectionTitle}>VENDAS</Text>
+                    {/* MENU ITEM: Pedidos -> Vendas */}
                     <MenuItem 
-                      icon="receipt" 
-                      title="Pedidos" 
+                      icon="receipt-outline" 
+                      title="Vendas" 
                       badge={pendingOrders} 
-                      onPress={() => navigateTo("Pedidos")} 
+                      onPress={() => navigateTo("Vendas")} {/* NOVA ROTA */}
                     />
                   </View>
                   
                   <View style={styles.modernMenuSection}>
                     <Text style={styles.modernMenuSectionTitle}>ANÁLISES</Text>
+                    {/* MENU ITEM: Biometria -> Relatórios Vendas */}
                     <MenuItem 
-                      icon="analytics" 
-                      title="Biometria" 
-                      onPress={() => navigateTo("Biometria")} 
+                      icon="analytics-outline" 
+                      title="Relatórios Vendas" 
+                      onPress={() => navigateTo("RelatoriosVendas")} {/* NOVA ROTA */}
                     />
+                    {/* MENU ITEM: Alimentação -> Relatórios Estoque */}
                     <MenuItem 
-                      icon="document-text" 
-                      title="Relatórios" 
-                      onPress={() => navigateTo("Relatorios")} 
+                      icon="document-attach-outline" 
+                      title="Relatórios Estoque" 
+                      onPress={() => navigateTo("RelatoriosEstoque")} {/* NOVA ROTA */}
                     />
                   </View>
                 </ScrollView>
@@ -774,8 +790,7 @@ export default function DashboardScreen() {
   );
 }
 
-// ==================== STYLES ====================
-// Os estilos permanecem exatamente os mesmos do seu código original.
+// ==================== STYLES (Mantidos) ====================
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,

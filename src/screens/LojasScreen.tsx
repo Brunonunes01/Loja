@@ -20,157 +20,124 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Tanque } from "../../app/(tabs)";
+// Importa o novo tipo Loja (antigo Tanque)
+import { Loja } from "../../app/(tabs)";
 import { auth, database } from "../services/connectionFirebase";
 
-const { width, height } = Dimensions.get('window');
-const ADMIN_PASSWORD = 'admin123'; // IMPORTANTE: Mover para .env em produção
+const { width } = Dimensions.get('window');
+const ADMIN_PASSWORD = 'admin123'; 
 
 // ==================== TYPES ====================
+// Adaptado de (comprimento, largura, profundidade) para gestão de Estoque
 type FormState = {
-  name: string;
-  location: string;
-  comprimento: string;
-  largura: string;
-  profundidade: string;
+  nome: string;
+  localizacao: string;
+  capacidadeEstoque: string; // Capacidade total em pares
+  enderecoCompleto: string;
 };
 
-type TanqueFormProps = {
+type LojaFormProps = {
   formState: FormState;
   onFormChange: (field: keyof FormState, value: string) => void;
   inputRefs: React.MutableRefObject<{ [key: string]: TextInput | null }>;
 };
 
-type FilterType = 'todos' | 'grande' | 'medio' | 'pequeno';
+type FilterType = 'todos' | 'grande' | 'pequeno';
 
 // ==================== COMPONENTE DO FORMULÁRIO ====================
-const TanqueForm = memo(({ formState, onFormChange, inputRefs }: TanqueFormProps) => {
+const LojaForm = memo(({ formState, onFormChange, inputRefs }: LojaFormProps) => {
   return (
     <View style={styles.formContainer}>
       {/* Informações Básicas */}
       <View style={styles.formSection}>
         <View style={styles.sectionHeaderForm}>
-          <Ionicons name="information-circle" size={20} color="#0EA5E9" />
-          <Text style={styles.sectionTitleForm}>Informações Básicas</Text>
+          <Ionicons name="storefront-outline" size={20} color="#0EA5E9" />
+          <Text style={styles.sectionTitleForm}>Informações da Loja / CD</Text>
         </View>
 
         <View style={styles.inputWrapper}>
-          <Text style={styles.inputLabel}>Nome do Tanque</Text>
+          <Text style={styles.inputLabel}>Nome da Loja / CD *</Text>
           <View style={styles.inputWithIcon}>
-            <Ionicons name="water" size={20} color="#0EA5E9" style={styles.inputIcon} />
+            <Ionicons name="storefront-outline" size={20} color="#0EA5E9" style={styles.inputIcon} />
             <TextInput
-              ref={el => { inputRefs.current['name'] = el; }}
+              ref={el => { inputRefs.current['nome'] = el; }}
               style={styles.inputField}
-              placeholder="Ex: Tanque Principal 01"
-              value={formState.name}
-              onChangeText={(v) => onFormChange('name', v)}
+              placeholder="Ex: Loja Central, CD Zona Sul"
+              value={formState.nome}
+              onChangeText={(v) => onFormChange('nome', v)}
               placeholderTextColor="#94A3B8"
               returnKeyType="next"
-              onSubmitEditing={() => inputRefs.current['location']?.focus()}
+              onSubmitEditing={() => inputRefs.current['localizacao']?.focus()}
             />
           </View>
         </View>
 
         <View style={styles.inputWrapper}>
-          <Text style={styles.inputLabel}>Localização</Text>
+          <Text style={styles.inputLabel}>Localização Resumida *</Text>
           <View style={styles.inputWithIcon}>
-            <Ionicons name="location" size={20} color="#0EA5E9" style={styles.inputIcon} />
+            <Ionicons name="map-outline" size={20} color="#0EA5E9" style={styles.inputIcon} />
             <TextInput
-              ref={el => { inputRefs.current['location'] = el; }}
+              ref={el => { inputRefs.current['localizacao'] = el; }}
               style={styles.inputField}
-              placeholder="Ex: Setor A - Área Externa"
-              value={formState.location}
-              onChangeText={(v) => onFormChange('location', v)}
+              placeholder="Ex: São Paulo - SP, Rio de Janeiro"
+              value={formState.localizacao}
+              onChangeText={(v) => onFormChange('localizacao', v)}
               placeholderTextColor="#94A3B8"
               returnKeyType="next"
-              onSubmitEditing={() => inputRefs.current['comprimento']?.focus()}
+              onSubmitEditing={() => inputRefs.current['capacidadeEstoque']?.focus()}
             />
           </View>
         </View>
       </View>
 
-      {/* Dimensões */}
+      {/* Capacidade e Endereço */}
       <View style={styles.formSection}>
         <View style={styles.sectionHeaderForm}>
-          <Ionicons name="resize" size={20} color="#10B981" />
-          <Text style={styles.sectionTitleForm}>Dimensões (metros)</Text>
+          <Ionicons name="cube-outline" size={20} color="#10B981" />
+          <Text style={styles.sectionTitleForm}>Capacidade e Detalhes</Text>
         </View>
 
-        <View style={styles.dimensionsGrid}>
-          <View style={styles.dimensionCard}>
-            <View style={styles.dimensionIconContainer}>
-              <Ionicons name="arrow-forward" size={18} color="#0EA5E9" />
-            </View>
-            <Text style={styles.dimensionLabel}>Comprimento</Text>
+        <View style={styles.inputWrapper}>
+          <Text style={styles.inputLabel}>Capacidade Máxima (Pares) *</Text>
+          <View style={styles.inputWithIcon}>
+            <Ionicons name="server-outline" size={20} color="#F59E0B" style={styles.inputIcon} />
             <TextInput
-              ref={el => { inputRefs.current['comprimento'] = el; }}
-              style={styles.dimensionInput}
-              placeholder="0,00"
-              value={formState.comprimento}
-              onChangeText={(v) => onFormChange('comprimento', v)}
+              ref={el => { inputRefs.current['capacidadeEstoque'] = el; }}
+              style={styles.inputField}
+              placeholder="0"
+              value={formState.capacidadeEstoque}
+              onChangeText={(v) => onFormChange('capacidadeEstoque', v)}
               keyboardType="numeric"
-              placeholderTextColor="#CBD5E1"
+              placeholderTextColor="#94A3B8"
               returnKeyType="next"
-              onSubmitEditing={() => inputRefs.current['largura']?.focus()}
+              onSubmitEditing={() => inputRefs.current['enderecoCompleto']?.focus()}
             />
-            <Text style={styles.dimensionUnit}>metros</Text>
           </View>
+        </View>
 
-          <View style={styles.dimensionCard}>
-            <View style={styles.dimensionIconContainer}>
-              <Ionicons name="swap-horizontal" size={18} color="#10B981" />
-            </View>
-            <Text style={styles.dimensionLabel}>Largura</Text>
+        <View style={styles.inputWrapper}>
+          <Text style={styles.inputLabel}>Endereço Completo</Text>
+          <View style={styles.inputWithIcon}>
+            <Ionicons name="location-outline" size={20} color="#8B5CF6" style={styles.inputIcon} />
             <TextInput
-              ref={el => { inputRefs.current['largura'] = el; }}
-              style={styles.dimensionInput}
-              placeholder="0,00"
-              value={formState.largura}
-              onChangeText={(v) => onFormChange('largura', v)}
-              keyboardType="numeric"
-              placeholderTextColor="#CBD5E1"
-              returnKeyType="next"
-              onSubmitEditing={() => inputRefs.current['profundidade']?.focus()}
-            />
-            <Text style={styles.dimensionUnit}>metros</Text>
-          </View>
-
-          <View style={styles.dimensionCard}>
-            <View style={styles.dimensionIconContainer}>
-              <Ionicons name="arrow-down" size={18} color="#F59E0B" />
-            </View>
-            <Text style={styles.dimensionLabel}>Profundidade</Text>
-            <TextInput
-              ref={el => { inputRefs.current['profundidade'] = el; }}
-              style={styles.dimensionInput}
-              placeholder="0,00"
-              value={formState.profundidade}
-              onChangeText={(v) => onFormChange('profundidade', v)}
-              keyboardType="numeric"
-              placeholderTextColor="#CBD5E1"
+              ref={el => { inputRefs.current['enderecoCompleto'] = el; }}
+              style={styles.inputField}
+              placeholder="Rua, Número, Bairro, CEP"
+              value={formState.enderecoCompleto}
+              onChangeText={(v) => onFormChange('enderecoCompleto', v)}
+              placeholderTextColor="#94A3B8"
               returnKeyType="done"
             />
-            <Text style={styles.dimensionUnit}>metros</Text>
           </View>
         </View>
 
-        {/* Preview do Volume */}
-        {formState.comprimento && formState.largura && formState.profundidade && (
-          <View style={styles.volumePreview}>
-            <Ionicons name="calculator" size={20} color="#8B5CF6" />
-            <Text style={styles.volumePreviewText}>
-              Volume estimado: {' '}
-              <Text style={styles.volumePreviewValue}>
-                {(
-                  parseFloat(formState.comprimento.replace(',', '.') || '0') *
-                  parseFloat(formState.largura.replace(',', '.') || '0') *
-                  parseFloat(formState.profundidade.replace(',', '.') || '0') *
-                  1000
-                ).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L
-              </Text>
-            </Text>
-          </View>
-        )}
+        {/* Informação de Utilização */}
+        <View style={styles.volumePreview}>
+          <Ionicons name="information-circle-outline" size={20} color="#8B5CF6" />
+          <Text style={styles.volumePreviewText}>
+            Capacidade é usada para gerenciar o inventário máximo de SKUs.
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -178,24 +145,24 @@ const TanqueForm = memo(({ formState, onFormChange, inputRefs }: TanqueFormProps
 
 // ==================== TELA PRINCIPAL ====================
 export default function TanquesScreen() {
-  const [tanks, setTanks] = useState<Tanque[]>([]);
-  const [filteredTanks, setFilteredTanks] = useState<Tanque[]>([]);
+  const [lojas, setLojas] = useState<Loja[]>([]); // Renomeado para 'lojas'
+  const [filteredLojas, setFilteredLojas] = useState<Loja[]>([]); // Renomeado para 'filteredLojas'
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('todos');
   const user = auth.currentUser;
   
-  // Animações
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
-  // Estados de modais
   const [isAddOrEditModalVisible, setIsAddOrEditModalVisible] = useState(false);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [isDetailsModalVisible, setIsDetailsModalVisible] = useState(false);
-  const [currentTank, setCurrentTank] = useState<Tanque | null>(null);
+  const [currentLoja, setCurrentLoja] = useState<Loja | null>(null); // Renomeado para 'currentLoja'
   const [passwordInput, setPasswordInput] = useState('');
+  
+  // O estado do formulário agora reflete o modelo Loja
   const [formState, setFormState] = useState<FormState>({
-    name: '', location: '', comprimento: '', largura: '', profundidade: '',
+    nome: '', localizacao: '', capacidadeEstoque: '', enderecoCompleto: '',
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -205,13 +172,13 @@ export default function TanquesScreen() {
   useEffect(() => {
     if (!user) return;
     
-    const tanksRef = ref(database, `users/${user.uid}/tanks`);
-    const unsubscribe = onValue(tanksRef, (snapshot) => {
+    // Altera o caminho do Firebase de 'tanks' para 'lojas'
+    const lojasRef = ref(database, `users/${user.uid}/lojas`);
+    const unsubscribe = onValue(lojasRef, (snapshot) => {
       const data = snapshot.val();
-      const tanksArray = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
-      setTanks(tanksArray);
+      const lojasArray = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
+      setLojas(lojasArray); // Atualiza estado 'lojas'
       
-      // Animações de entrada
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -230,58 +197,56 @@ export default function TanquesScreen() {
     return unsubscribe;
   }, [user]);
 
-  // Filtro e busca
+  // Filtro e busca adaptados para Loja
   useEffect(() => {
-    let result = tanks;
+    let result = lojas;
 
-    // Filtro por tamanho
+    // Filtro por capacidade (baseado em capacidadeEstoque)
     if (filterType !== 'todos') {
-      result = result.filter(tank => {
-        const volume = tank.volume;
-        if (filterType === 'grande') return volume > 50000;
-        if (filterType === 'medio') return volume > 20000 && volume <= 50000;
-        if (filterType === 'pequeno') return volume <= 20000;
+      result = result.filter(loja => {
+        const capacidade = loja.capacidadeEstoque;
+        if (filterType === 'grande') return capacidade > 5000; // Exemplo: > 5000 pares
+        if (filterType === 'pequeno') return capacidade <= 5000; // Exemplo: <= 5000 pares
         return true;
       });
     }
 
     // Busca por nome ou localização
     if (searchQuery.trim()) {
-      result = result.filter(tank =>
-        tank.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tank.location.toLowerCase().includes(searchQuery.toLowerCase())
+      result = result.filter(loja =>
+        loja.nome.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        loja.localizacao.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    setFilteredTanks(result);
-  }, [tanks, filterType, searchQuery]);
+    setFilteredLojas(result);
+  }, [lojas, filterType, searchQuery]); // Usa 'lojas' como dependência
 
-  // ==================== FUNÇÕES ====================
+  // ==================== FUNÇÕES CRUD ====================
   const openAddModal = useCallback(() => {
-    setCurrentTank(null);
-    setFormState({ name: '', location: '', comprimento: '', largura: '', profundidade: '' });
+    setCurrentLoja(null);
+    setFormState({ nome: '', localizacao: '', capacidadeEstoque: '', enderecoCompleto: '' });
     setIsAddOrEditModalVisible(true);
   }, []);
 
-  const openEditModal = useCallback((tanque: Tanque) => {
-    setCurrentTank(tanque);
+  const openEditModal = useCallback((loja: Loja) => {
+    setCurrentLoja(loja);
     setFormState({
-      name: tanque.name,
-      location: tanque.location,
-      comprimento: tanque.comprimento.toString().replace('.', ','),
-      largura: tanque.largura.toString().replace('.', ','),
-      profundidade: tanque.profundidade.toString().replace('.', ','),
+      nome: loja.nome,
+      localizacao: loja.localizacao,
+      capacidadeEstoque: loja.capacidadeEstoque.toString(),
+      enderecoCompleto: loja.enderecoCompleto || '',
     });
     setIsAddOrEditModalVisible(true);
   }, []);
 
-  const openDeleteModal = useCallback((tanque: Tanque) => {
-    setCurrentTank(tanque);
+  const openDeleteModal = useCallback((loja: Loja) => {
+    setCurrentLoja(loja);
     setIsDeleteModalVisible(true);
   }, []);
 
-  const openDetailsModal = useCallback((tanque: Tanque) => {
-    setCurrentTank(tanque);
+  const openDetailsModal = useCallback((loja: Loja) => {
+    setCurrentLoja(loja);
     setIsDetailsModalVisible(true);
   }, []);
 
@@ -289,89 +254,87 @@ export default function TanquesScreen() {
     setFormState(prev => ({ ...prev, [field]: value }));
   }, []);
 
-  const handleAddOrUpdateTank = async () => {
-    const { name, location, comprimento, largura, profundidade } = formState;
+  const handleAddOrUpdateLoja = async () => {
+    const { nome, localizacao, capacidadeEstoque, enderecoCompleto } = formState;
     
-    if (!name.trim() || !location.trim() || !comprimento || !largura || !profundidade) {
-      return Alert.alert("Atenção", "Preencha todos os campos.");
+    if (!nome.trim() || !localizacao.trim() || !capacidadeEstoque) {
+      return Alert.alert("Atenção", "Preencha todos os campos obrigatórios (*).");
     }
     
     if (!user) return;
 
     setIsSaving(true);
 
-    const c = parseFloat(comprimento.replace(',', '.'));
-    const l = parseFloat(largura.replace(',', '.'));
-    const p = parseFloat(profundidade.replace(',', '.'));
+    const capacidadeNum = parseInt(capacidadeEstoque);
 
-    if (isNaN(c) || isNaN(l) || isNaN(p) || c <= 0 || l <= 0 || p <= 0) {
+    if (isNaN(capacidadeNum) || capacidadeNum <= 0) {
       setIsSaving(false);
-      return Alert.alert("Erro", "As dimensões devem ser números positivos válidos.");
+      return Alert.alert("Erro", "A capacidade deve ser um número inteiro positivo válido.");
     }
 
-    const volumeEmLitros = c * l * p * 1000;
-    const tankData: Partial<Tanque> = {
-      name,
-      location,
-      comprimento: c,
-      largura: l,
-      profundidade: p,
-      volume: volumeEmLitros,
+    const lojaData: Partial<Loja> = {
+      nome,
+      localizacao,
+      capacidadeEstoque: capacidadeNum,
+      enderecoCompleto: enderecoCompleto || 'Não informado',
+      status: currentLoja?.status || 'ativa',
       updatedAt: new Date().toISOString(),
     };
     
-    if (!currentTank) {
-        tankData.createdAt = new Date().toISOString();
+    if (!currentLoja) {
+        lojaData.createdAt = new Date().toISOString();
     }
 
-
     try {
-      if (currentTank) {
-        await update(ref(database, `users/${user.uid}/tanks/${currentTank.id}`), {
-            ...tankData,
-            createdAt: currentTank.createdAt || new Date().toISOString() // Manter data de criação original
+      if (currentLoja) {
+        // Usa o caminho 'lojas'
+        await update(ref(database, `users/${user.uid}/lojas/${currentLoja.id}`), {
+            ...lojaData,
+            createdAt: currentLoja.createdAt || new Date().toISOString()
         });
-        Alert.alert("✅ Sucesso", "Tanque atualizado com sucesso!");
+        Alert.alert("✅ Sucesso", "Loja/CD atualizado com sucesso!");
       } else {
-        const newTankRef = push(ref(database, `users/${user.uid}/tanks`));
-        await set(newTankRef, tankData);
-        Alert.alert("✅ Sucesso", `Tanque adicionado!\nVolume: ${volumeEmLitros.toFixed(0)} L`);
+        // Usa o caminho 'lojas'
+        const newLojaRef = push(ref(database, `users/${user.uid}/lojas`));
+        await set(newLojaRef, lojaData);
+        Alert.alert("✅ Sucesso", `Loja/CD adicionado! Capacidade: ${capacidadeNum.toLocaleString('pt-BR')} pares.`);
       }
       setIsAddOrEditModalVisible(false);
     } catch (error) {
-      console.error("Erro ao salvar tanque:", error);
-      Alert.alert("❌ Erro", "Ocorreu um erro ao salvar o tanque.");
+      console.error("Erro ao salvar loja:", error);
+      Alert.alert("❌ Erro", "Ocorreu um erro ao salvar a Loja/CD.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeleteTank = async () => {
+  const handleDeleteLoja = async () => {
     if (passwordInput !== ADMIN_PASSWORD) {
       return Alert.alert("❌ Falha", "Senha de administrador incorreta.");
     }
     
-    if (!user || !currentTank) return;
+    if (!user || !currentLoja) return;
     
     try {
-      await remove(ref(database, `users/${user.uid}/tanks/${currentTank.id}`));
-      Alert.alert("✅ Sucesso", "Tanque excluído permanentemente.");
+      // Usa o caminho 'lojas'
+      await remove(ref(database, `users/${user.uid}/lojas/${currentLoja.id}`));
+      Alert.alert("✅ Sucesso", "Loja/CD excluído permanentemente.");
       setIsDeleteModalVisible(false);
       setPasswordInput('');
     } catch (error) {
-      Alert.alert("❌ Erro", "Não foi possível excluir o tanque.");
+      Alert.alert("❌ Erro", "Não foi possível excluir a Loja/CD.");
     }
   };
 
-  const getTankSize = (volume: number): { label: string; color: string } => {
-    if (volume > 50000) return { label: 'Grande', color: '#10B981' };
-    if (volume > 20000) return { label: 'Médio', color: '#F59E0B' };
-    return { label: 'Pequeno', color: '#0EA5E9' };
+  const getLojaSize = (capacidade: number): { label: string; color: string } => {
+    if (capacidade > 10000) return { label: 'Mega CD', color: '#10B981' };
+    if (capacidade > 5000) return { label: 'Grande', color: '#F59E0B' };
+    return { label: 'Pequena', color: '#0EA5E9' };
   };
 
-  // ==================== COMPONENTES ====================
-  const TanqueCard = memo(({ item }: { item: Tanque }) => {
-    const sizeInfo = getTankSize(item.volume);
+  // ==================== COMPONENTES DE EXIBIÇÃO ====================
+  const LojaCard = memo(({ item }: { item: Loja }) => { // Usa o tipo Loja
+    const sizeInfo = getLojaSize(item.capacidadeEstoque);
     
     return (
       <Pressable
@@ -383,19 +346,18 @@ export default function TanquesScreen() {
       >
         <View style={styles.cardGradient} />
         
-        {/* Header do Card */}
         <View style={styles.cardHeader}>
           <View style={styles.cardIconWrapper}>
             <View style={[styles.cardIconBg, { backgroundColor: sizeInfo.color + '20' }]}>
-              <Ionicons name="water" size={28} color={sizeInfo.color} />
+              <Ionicons name="storefront-outline" size={28} color={sizeInfo.color} />
             </View>
           </View>
           
           <View style={styles.cardTitleSection}>
-            <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.cardTitle} numberOfLines={1}>{item.nome}</Text>
             <View style={styles.cardLocationRow}>
-              <Ionicons name="location" size={14} color="#64748B" />
-              <Text style={styles.cardLocation} numberOfLines={1}>{item.location}</Text>
+              <Ionicons name="map-outline" size={14} color="#64748B" />
+              <Text style={styles.cardLocation} numberOfLines={1}>{item.localizacao}</Text>
             </View>
           </View>
           
@@ -404,44 +366,28 @@ export default function TanquesScreen() {
           </View>
         </View>
 
-        {/* Detalhes principais */}
         <View style={styles.cardMainInfo}>
           <View style={styles.volumeDisplayCard}>
-            <Ionicons name="cube" size={20} color="#0EA5E9" />
+            <Ionicons name="server-outline" size={20} color="#0EA5E9" />
             <View style={styles.volumeDisplayText}>
-              <Text style={styles.volumeLabel}>Volume Total</Text>
+              <Text style={styles.volumeLabel}>Capacidade Total</Text>
               <Text style={styles.volumeValue}>
-                {item.volume.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L
+                {item.capacidadeEstoque.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} Pares
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Dimensões */}
+        {/* Detalhes simples do endereço */}
         <View style={styles.cardDimensions}>
-          <View style={styles.dimensionItem}>
-            <Ionicons name="arrow-forward" size={14} color="#64748B" />
-            <Text style={styles.dimensionText}>
-              {item.comprimento.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}m
-            </Text>
-          </View>
-          <View style={styles.dimensionSeparator} />
-          <View style={styles.dimensionItem}>
-            <Ionicons name="swap-horizontal" size={14} color="#64748B" />
-            <Text style={styles.dimensionText}>
-              {item.largura.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}m
-            </Text>
-          </View>
-          <View style={styles.dimensionSeparator} />
-          <View style={styles.dimensionItem}>
-            <Ionicons name="arrow-down" size={14} color="#64748B" />
-            <Text style={styles.dimensionText}>
-              {item.profundidade.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}m
-            </Text>
-          </View>
+            <View style={styles.dimensionItem}>
+                <Ionicons name="location-outline" size={14} color="#64748B" />
+                <Text style={styles.dimensionText} numberOfLines={1}>
+                    {item.enderecoCompleto || 'Endereço não informado'}
+                </Text>
+            </View>
         </View>
 
-        {/* Ações */}
         <View style={styles.cardActions}>
           <Pressable
             style={({ pressed }) => [
@@ -477,9 +423,9 @@ export default function TanquesScreen() {
     );
   });
 
-  const renderItem: ListRenderItem<Tanque> = ({ item }) => <TanqueCard item={item} />;
+  const renderItem: ListRenderItem<Loja> = ({ item }) => <LojaCard item={item} />;
 
-  // ==================== RENDER ====================
+  // ==================== RENDER PRINCIPAL ====================
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
@@ -503,9 +449,9 @@ export default function TanquesScreen() {
           <View style={styles.header}>
             <View style={styles.headerTop}>
               <View>
-                <Text style={styles.screenTitle}>Tanques</Text>
+                <Text style={styles.screenTitle}>Lojas / CDs</Text>
                 <Text style={styles.screenSubtitle}>
-                  {filteredTanks.length} tanque{filteredTanks.length !== 1 ? 's' : ''} encontrado{filteredTanks.length !== 1 ? 's' : ''}
+                  {filteredLojas.length} local{filteredLojas.length !== 1 ? 'is' : ''} de estoque encontrado{filteredLojas.length !== 1 ? 's' : ''}
                 </Text>
               </View>
               
@@ -557,16 +503,7 @@ export default function TanquesScreen() {
                 onPress={() => setFilterType('grande')}
               >
                 <Text style={[styles.filterChipText, filterType === 'grande' && styles.filterChipTextActive]}>
-                  Grandes
-                </Text>
-              </Pressable>
-
-              <Pressable
-                style={[styles.filterChip, filterType === 'medio' && styles.filterChipActive]}
-                onPress={() => setFilterType('medio')}
-              >
-                <Text style={[styles.filterChipText, filterType === 'medio' && styles.filterChipTextActive]}>
-                  Médios
+                  Grande Capacidade
                 </Text>
               </Pressable>
 
@@ -575,25 +512,25 @@ export default function TanquesScreen() {
                 onPress={() => setFilterType('pequeno')}
               >
                 <Text style={[styles.filterChipText, filterType === 'pequeno' && styles.filterChipTextActive]}>
-                  Pequenos
+                  Pequena Capacidade
                 </Text>
               </Pressable>
             </ScrollView>
           </View>
 
-          {/* Lista de Tanques */}
-          {filteredTanks.length === 0 ? (
+          {/* Lista de Lojas */}
+          {filteredLojas.length === 0 ? (
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}>
-                <Ionicons name={searchQuery ? "search" : "water"} size={64} color="rgba(255,255,255,0.4)" />
+                <Ionicons name={searchQuery ? "search" : "storefront-outline"} size={64} color="rgba(255,255,255,0.4)" />
               </View>
               <Text style={styles.emptyTitle}>
-                {searchQuery ? 'Nenhum resultado encontrado' : 'Nenhum tanque cadastrado'}
+                {searchQuery ? 'Nenhum resultado encontrado' : 'Nenhuma Loja/CD cadastrado'}
               </Text>
               <Text style={styles.emptyText}>
                 {searchQuery
                   ? 'Tente buscar com outros termos'
-                  : 'Comece adicionando seu primeiro tanque'}
+                  : 'Comece adicionando seu primeiro local de estoque'}
               </Text>
               {!searchQuery && (
                 <Pressable
@@ -601,13 +538,13 @@ export default function TanquesScreen() {
                   onPress={openAddModal}
                 >
                   <Ionicons name="add-circle" size={20} color="#0EA5E9" />
-                  <Text style={styles.emptyButtonText}>Adicionar Tanque</Text>
+                  <Text style={styles.emptyButtonText}>Adicionar Loja/CD</Text>
                 </Pressable>
               )}
             </View>
           ) : (
             <FlatList
-              data={filteredTanks}
+              data={filteredLojas}
               renderItem={renderItem}
               keyExtractor={item => item.id}
               contentContainerStyle={styles.listContainer}
@@ -649,25 +586,25 @@ export default function TanquesScreen() {
                   <View style={styles.modalTitleContainer}>
                     <View style={styles.modalIconBg}>
                       <Ionicons
-                        name={currentTank ? "create" : "add-circle"}
+                        name={currentLoja ? "create" : "add-circle"}
                         size={32}
                         color="#0EA5E9"
                       />
                     </View>
                     <Text style={styles.modalTitle}>
-                      {currentTank ? 'Editar Tanque' : 'Novo Tanque'}
+                      {currentLoja ? 'Editar Loja / CD' : 'Nova Loja / CD'}
                     </Text>
                     <Text style={styles.modalSubtitle}>
-                      {currentTank
-                        ? 'Atualize as informações do tanque'
-                        : 'Adicione um novo tanque à sua piscicultura'}
+                      {currentLoja
+                        ? 'Atualize as informações do local de estoque'
+                        : 'Adicione um novo local de estoque ao sistema'}
                     </Text>
                   </View>
                 </View>
 
                 {/* Formulário */}
                 <View style={styles.modalCard}>
-                  <TanqueForm
+                  <LojaForm
                     formState={formState}
                     onFormChange={handleFormChange}
                     inputRefs={inputRefs}
@@ -691,7 +628,7 @@ export default function TanquesScreen() {
                         pressed && styles.actionPressed,
                         isSaving && styles.modalSaveButtonDisabled
                       ]}
-                      onPress={handleAddOrUpdateTank}
+                      onPress={handleAddOrUpdateLoja}
                       disabled={isSaving}
                     >
                       {isSaving ? (
@@ -700,7 +637,7 @@ export default function TanquesScreen() {
                         <Ionicons name="checkmark-circle" size={20} color="#fff" />
                       )}
                       <Text style={styles.modalSaveText}>
-                        {isSaving ? "Salvando..." : (currentTank ? 'Atualizar' : 'Salvar')}
+                        {isSaving ? "Salvando..." : (currentLoja ? 'Atualizar' : 'Salvar')}
                       </Text>
                     </Pressable>
                   </View>
@@ -719,59 +656,52 @@ export default function TanquesScreen() {
         >
           <View style={styles.detailsModalOverlay}>
             <View style={styles.detailsModalContent}>
-              {currentTank && (
+              {currentLoja && (
                 <>
                   <View style={styles.detailsModalHeader}>
-                    <View style={[styles.detailsIcon, { backgroundColor: getTankSize(currentTank.volume).color }]}>
-                      <Ionicons name="water" size={32} color="#fff" />
+                    <View style={[styles.detailsIcon, { backgroundColor: getLojaSize(currentLoja.capacidadeEstoque).color }]}>
+                      <Ionicons name="storefront-outline" size={32} color="#fff" />
                     </View>
-                    <Text style={styles.detailsModalTitle}>{currentTank.name}</Text>
+                    <Text style={styles.detailsModalTitle}>{currentLoja.nome}</Text>
                     <Text style={styles.detailsModalLocation}>
-                      <Ionicons name="location" size={14} color="#64748B" /> {currentTank.location}
+                      <Ionicons name="map-outline" size={14} color="#64748B" /> {currentLoja.localizacao}
                     </Text>
                   </View>
 
                   <View style={styles.detailsModalBody}>
                     <View style={styles.detailsRow}>
-                      <Text style={styles.detailsLabel}>Volume Total</Text>
+                      <Text style={styles.detailsLabel}>Capacidade Total</Text>
                       <Text style={styles.detailsValue}>
-                        {currentTank.volume.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L
+                        {currentLoja.capacidadeEstoque.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} Pares
                       </Text>
                     </View>
 
                     <View style={styles.detailsDivider} />
 
                     <View style={styles.detailsRow}>
-                      <Text style={styles.detailsLabel}>Comprimento</Text>
-                      <Text style={styles.detailsValue}>
-                        {currentTank.comprimento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m
-                      </Text>
-                    </View>
-
-                    <View style={styles.detailsRow}>
-                      <Text style={styles.detailsLabel}>Largura</Text>
-                      <Text style={styles.detailsValue}>
-                        {currentTank.largura.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m
+                      <Text style={styles.detailsLabel}>Endereço</Text>
+                      <Text style={styles.detailsValue} numberOfLines={1}>
+                        {currentLoja.enderecoCompleto || 'Não Informado'}
                       </Text>
                     </View>
                     
                     <View style={styles.detailsRow}>
-                      <Text style={styles.detailsLabel}>Profundidade</Text>
-                      <Text style={styles.detailsValue}>
-                        {currentTank.profundidade.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m
+                      <Text style={styles.detailsLabel}>Status</Text>
+                      <Text style={[styles.detailsValue, { color: currentLoja.status === 'ativa' ? '#10B981' : '#F59E0B' }]}>
+                        {currentLoja.status}
                       </Text>
                     </View>
                     <View style={styles.detailsDivider} />
                     <View style={styles.detailsRow}>
                         <Text style={styles.detailsLabel}>Criado em</Text>
                         <Text style={styles.detailsValue}>
-                            {currentTank.createdAt ? new Date(currentTank.createdAt).toLocaleDateString('pt-BR') : 'N/A'}
+                            {currentLoja.createdAt ? new Date(currentLoja.createdAt).toLocaleDateString('pt-BR') : 'N/A'}
                         </Text>
                     </View>
                     <View style={styles.detailsRow}>
                         <Text style={styles.detailsLabel}>Última Atualização</Text>
                         <Text style={styles.detailsValue}>
-                            {currentTank.updatedAt ? new Date(currentTank.updatedAt).toLocaleDateString('pt-BR') : 'N/A'}
+                            {currentLoja.updatedAt ? new Date(currentLoja.updatedAt).toLocaleDateString('pt-BR') : 'N/A'}
                         </Text>
                     </View>
                   </View>
@@ -807,8 +737,8 @@ export default function TanquesScreen() {
               <Text style={styles.deleteModalTitle}>Confirmar Exclusão</Text>
               
               <Text style={styles.deleteModalText}>
-                Tem certeza que deseja excluir o tanque{" "}
-                <Text style={styles.deleteModalHighlight}>"{currentTank?.name}"</Text>?
+                Tem certeza que deseja excluir a Loja/CD{" "}
+                <Text style={styles.deleteModalHighlight}>"{currentLoja?.nome}"</Text>?
               </Text>
               
               <Text style={styles.deleteModalWarning}>
@@ -846,7 +776,8 @@ export default function TanquesScreen() {
                     styles.confirmDeleteButton,
                     pressed && styles.actionPressed
                   ]}
-                  onPress={handleDeleteTank}
+                  onPress={handleDeleteLoja}
+                  disabled={!passwordInput}
                 >
                   <Ionicons name="trash" size={18} color="#fff" />
                   <Text style={styles.confirmDeleteText}>Excluir</Text>
@@ -1050,10 +981,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flex: 1,
   },
   dimensionText: {
     fontSize: 12,
     color: '#CBD5E1',
+    flex: 1,
   },
   dimensionSeparator: {
     width: 1,
@@ -1109,6 +1042,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 24,
   },
   emptyTitle: {
     fontSize: 20,
@@ -1466,4 +1400,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-

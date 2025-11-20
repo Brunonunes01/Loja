@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "piscicultura-app",
-    "slug": "piscicultura-app",
+    "name": "sneaker-store-app",
+    "slug": "sneaker-store-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "pisciculturaapp",
+    "scheme": "sneakerstoreapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

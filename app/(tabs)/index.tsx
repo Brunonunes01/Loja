@@ -19,229 +19,95 @@ import TanquesScreen from "../../src/screens/TanquesScreen";
 import PlaceholderScreen from "../../src/screens/TelaPlaceholder";
 import { auth } from "../../src/services/connectionFirebase";
 
-// --- DEFINIÇÕES DE TIPO ---
+// --- DEFINIÇÕES DE TIPO (SNEAKER STORE) ---
 
-export type Tanque = {
+// 1. Onde Está o Estoque (Substitui Tanque)
+export type Loja = {
   id: string; 
-  name: string; 
-  location: string; 
-  comprimento: number;
-  largura: number; 
-  profundidade: number; 
-  volume: number; 
+  nome: string; 
+  localizacao: string; // Ex: CD São Paulo, Loja Centro
+  capacidadeEstoque: number; // Em número de pares
+  enderecoCompleto?: string; 
   createdAt?: string;
   updatedAt?: string;
-  status?: 'ativo' | 'manutencao' | 'inativo';
-  tipo?: 'concreto' | 'fibra' | 'terra' | 'outro';
+  status: 'ativa' | 'manutencao' | 'inativa';
 };
 
-export type Peixe = {
+// 2. O Tênis/Modelo (Substitui Peixe)
+export type Produto = {
   id: string; 
-  nomePopular: string; 
-  nomeCientifico: string; 
-  familia: string;
-  temperaturaIdeal: string; 
-  phIdeal: string; 
+  nomeModelo: string; // Ex: Nike Air Max 90
+  marca: string; // Ex: Nike, Adidas
+  precoBase: number;
+  categoria: 'esportivo' | 'casual' | 'skate' | 'corrida' | 'outro';
+  genero: 'masculino' | 'feminino' | 'unissex';
+  dataLancamento?: string;
+  imagemURL?: string;
   observacoes?: string;
-  oxigenioIdeal?: string;
-  salinidadeIdeal?: string;
-  dietaRecomendada?: string;
-  cicloVida?: string;
 };
 
-export type Lote = {
+// 3. Inventário Detalhado por Atributo (Substitui Lote)
+export type EstoqueSKU = {
   id: string; 
-  nomeLote: string; 
-  especie: string; 
-  quantidade: number;
-  quantidadeInicial: number;
-  fornecedor: string; 
-  pesoInicialMedio: number;
-  comprimentoInicialMedio?: number;
-  tanqueId: string;
-  tanqueNome: string; 
-  dataInicio: string; 
+  produtoId: string; // FK para Produto
+  nomeProduto: string; 
+  tamanho: number; // Ex: 40, 42
+  cor: string; // Ex: Preto/Vermelho
+  lojaId: string; // FK para Loja
+  nomeLoja: string;
+  quantidade: number; // Estoque atual
+  quantidadeInicial: number; // Estoque recebido
+  dataEntrada: string; 
+  fornecedor: string;
+  status: 'disponivel' | 'esgotado' | 'reservado';
   observacoes?: string;
-  status?: 'ativo' | 'colhido' | 'transferido' | 'doente';
-  faseCultivo?: 'alevinagem' | 'recria' | 'engorda' | 'terminacao';
-  dataEstimadaColheita?: string;
   createdAt?: string;
   updatedAt?: string;
 };
 
-export type AlimentacaoRegistro = {
-  id: string; 
-  data: string; 
-  loteId: string; 
-  loteNome: string;
-  quantidadeFornecida: number; 
-  sobrasEstimadas: number;
-  biomassaCalculada: number; 
-  taxaAlimentarAplicada: number;
-  tipoRacao?: string;
-  frequenciaAlimentacao?: number;
-  conversaoAlimentar?: number;
-  custoRacao?: number;
-  observacoes?: string;
-};
-
-// TIPO BIOMETRIA ATUALIZADO COM NOVOS CAMPOS
-export type BiometriaRegistro = {
-  id: string; 
-  data: string; 
-  loteId: string; 
-  loteNome: string;
-  pesoMedioCalculado: number; 
-  biomassaTotalEstimada: number;
-  mortalidadeRegistrada: number; 
-  observacoes?: string;
-  
-  // NOVOS CAMPOS BIOMÉTRICOS
-  comprimentoMedio?: number;
-  taxaCrescimentoDiario?: number;
-  conversaoAlimentar?: number;
-  uniformidade?: number;
-  sobrevivencia?: number;
-  quantidadePeixesInicial?: number;
-  quantidadePeixesAtual?: number;
-  racaoConsumida?: number;
-  
-  // CAMPOS ADICIONAIS PARA CÁLCULOS
-  ganhoPesoDiario?: number;
-  fatorCondicao?: number;
-  biomassaPorMetroCubico?: number;
-  diasCultivo?: number;
-  
-  // PARÂMETROS DE QUALIDADE DE ÁGUA (opcionais)
-  temperaturaAgua?: number;
-  phAgua?: number;
-  oxigenioDissolvido?: number;
-  amonia?: number;
-  nitrito?: number;
-};
-
-// TIPO PARA REGISTROS DE QUALIDADE DE ÁGUA
-export type QualidadeAguaRegistro = {
+// 4. O Pedido do Cliente (Substitui Pedido)
+export type Venda = {
   id: string;
-  data: string;
-  tanqueId: string;
-  tanqueNome: string;
-  loteId?: string;
-  loteNome?: string;
-  temperatura: number;
-  ph: number;
-  oxigenioDissolvido: number;
-  amonia: number;
-  nitrito: number;
-  nitrato: number;
-  transparencia?: number;
-  alcalinidade?: number;
-  dureza?: number;
-  observacoes?: string;
-};
-
-export type Pedido = {
-  id: string;
-  cliente: string;
-  produto: string;
+  cliente: string; 
+  produtoVendido: string; // SKU (Modelo, Tamanho e Cor)
   quantidade: number;
-  valor: number;
-  status: 'pendente' | 'processando' | 'concluido' | 'cancelado';
-  dataEntrega: string;
+  valorTotal: number;
+  status: 'pendente' | 'processando' | 'enviado' | 'entregue' | 'cancelado';
+  dataEnvio: string;
   timestamp: number;
-  createdAt?: string;
-  updatedAt?: string;
   
-  // CAMPOS EXPANDIDOS PARA PEDIDOS
-  telefoneCliente?: string;
-  emailCliente?: string;
+  clienteTelefone?: string;
   enderecoEntrega?: string;
-  especie?: string;
-  tamanho?: string;
+  lojaOrigemId: string;
   observacoes?: string;
   prioridade?: 'baixa' | 'media' | 'alta';
-  formaPagamento?: 'dinheiro' | 'cartao' | 'transferencia' | 'pix';
-  statusPagamento?: 'pendente' | 'pago' | 'parcial';
+  formaPagamento?: 'pix' | 'cartao' | 'boleto';
 };
 
-// NOVO TIPO PARA RELATÓRIOS E ANÁLISES
-export type Relatorio = {
-  id: string;
-  tipo: 'producao' | 'vendas' | 'biometria' | 'alimentacao' | 'qualidade_agua';
-  periodo: 'diario' | 'semanal' | 'mensal' | 'anual';
-  dataInicio: string;
-  dataFim: string;
-  metricas: {
-    producaoTotal?: number;
-    vendasTotal?: number;
-    taxaSobrevivenciaMedia?: number;
-    conversaoAlimentarMedia?: number;
-    custoProducao?: number;
-    lucro?: number;
-  };
-  createdAt: string;
+// 5. Tipo para Relatórios de Vendas (Adaptado de Biometria)
+export type RelatorioVenda = {
+  id: string; 
+  data: string; 
+  vendaId: string; 
+  produtoNome: string;
+  margemLucro: number; 
+  custoTotal: number;
+  observacoes: string;
+  // Métricas
+  volumeVendasDia?: number;
+  estoqueAtualizado?: number;
 };
 
-// NOVO TIPO PARA CLIENTES
-export type Cliente = {
+// 6. Tipo para Relatórios de Estoque (Adaptado de Alimentacao)
+export type RelatorioEstoque = {
   id: string;
-  nome: string;
-  telefone: string;
-  email?: string;
-  endereco?: string;
-  tipo: 'varejo' | 'atacado' | 'distribuidor';
-  cpfCnpj?: string;
+  data: string;
+  skuId: string;
+  skuNome: string;
+  quantidadeRecebida: number; 
+  quantidadeVendida: number;
+  estoqueAtual: number;
   observacoes?: string;
-  dataCadastro: string;
-  pedidosRealizados: number;
-  valorTotalComprado: number;
-};
-
-// NOVO TIPO PARA FORNECEDORES
-export type Fornecedor = {
-  id: string;
-  nome: string;
-  tipo: 'racao' | 'alevino' | 'equipamento' | 'outros';
-  telefone: string;
-  email?: string;
-  endereco?: string;
-  produtosFornecidos: string[];
-  avaliacao?: number;
-  observacoes?: string;
-  dataCadastro: string;
-};
-
-// NOVO TIPO PARA ESTOQUE DE RAÇÃO
-export type EstoqueRacao = {
-  id: string;
-  tipoRacao: string;
-  marca?: string;
-  quantidade: number;
-  unidade: 'kg' | 'saco';
-  pesoPorSaco?: number;
-  dataCompra: string;
-  dataValidade: string;
-  fornecedorId: string;
-  fornecedorNome: string;
-  custoUnitario: number;
-  localArmazenamento?: string;
-  observacoes?: string;
-};
-
-// NOVO TIPO PARA MANUTENÇÕES
-export type Manutencao = {
-  id: string;
-  tipo: 'preventiva' | 'corretiva' | 'preditiva';
-  equipamento: string;
-  tanqueId?: string;
-  descricao: string;
-  dataProgramada: string;
-  dataRealizacao?: string;
-  status: 'agendada' | 'em_andamento' | 'concluida' | 'cancelada';
-  custo?: number;
-  responsavel: string;
-  observacoes?: string;
-  createdAt: string;
 };
 
 // --- TIPOS DE NAVEGAÇÃO ---
@@ -251,20 +117,25 @@ export type RootStackParamList = {
   Register: undefined; 
   Dashboard: undefined;
   Perfil: { userId?: string }; 
-  Tanques: undefined; 
-  Lotes: undefined; 
-  Peixes: undefined;
-  Alimentacao: undefined; 
-  Biometria: undefined; 
-  Relatorios: undefined;
+  
+  // NOVAS ROTAS (E-COMMERCE)
+  Lojas: undefined; 
+  Estoque: undefined; 
+  Produtos: undefined;
+  Vendas: undefined;
+  RelatoriosVendas: undefined; // Antiga Biometria
+  RelatoriosEstoque: undefined; // Antiga Alimentacao
+  
   ListaUsuarios: undefined;
+  
+  // ROTAS ANTIGAS (Mantidas para evitar erros de tipo temporariamente)
+  Tanques: undefined;
+  Lotes: undefined;
+  Peixes: undefined;
+  Alimentacao: undefined;
+  Biometria: undefined;
+  Relatorios: undefined;
   Pedidos: undefined;
-  // NOVAS TELAS (se necessário futuramente)
-  // QualidadeAgua: undefined;
-  // Clientes: undefined;
-  // Fornecedores: undefined;
-  // Estoque: undefined;
-  // Manutencao: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -298,13 +169,25 @@ function AppStack() {
     >
       <Stack.Screen name="Dashboard" component={DashboardScreen} />
       <Stack.Screen name="Perfil" component={PerfilScreen} />
+      
+      {/* TELAS DE E-COMMERCE - REUTILIZAÇÃO DE COMPONENTES */}
+      <Stack.Screen name="Lojas" component={TanquesScreen} /> 
+      <Stack.Screen name="Estoque" component={LotesScreen} /> 
+      <Stack.Screen name="Produtos" component={PeixesScreen} />
+      <Stack.Screen name="Vendas" component={PedidosScreen} /> 
+      <Stack.Screen name="RelatoriosVendas" component={BiometriaScreen} /> 
+      <Stack.Screen name="RelatoriosEstoque" component={AlimentacaoScreen} />
+      
+      {/* TELAS SECUNDÁRIAS */}
+      <Stack.Screen name="ListaUsuarios" component={ListaUsuarios} />
+      <Stack.Screen name="Relatorios" component={PlaceholderScreen} />
+      
+      {/* ROTAS ANTIGAS (Redirecionam para as novas, se forem chamadas) */}
       <Stack.Screen name="Tanques" component={TanquesScreen} />
       <Stack.Screen name="Lotes" component={LotesScreen} />
       <Stack.Screen name="Peixes" component={PeixesScreen} />
       <Stack.Screen name="Alimentacao" component={AlimentacaoScreen} />
       <Stack.Screen name="Biometria" component={BiometriaScreen} />
-      <Stack.Screen name="Relatorios" component={PlaceholderScreen} />
-      <Stack.Screen name="ListaUsuarios" component={ListaUsuarios} />
       <Stack.Screen name="Pedidos" component={PedidosScreen} />
     </Stack.Navigator>
   );

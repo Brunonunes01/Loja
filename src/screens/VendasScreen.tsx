@@ -20,31 +20,33 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Pedido } from "../../app/(tabs)";
+// Importa o novo tipo Venda (antigo Pedido)
+import { Venda } from "../../app/(tabs)";
 import { auth, database } from "../services/connectionFirebase";
 
 const { width } = Dimensions.get('window');
 const ADMIN_PASSWORD = 'admin123';
 const STATUS_CHANGE_PASSWORD = 'mudar123';
 
+// Tipos adaptados para o e-commerce de tênis
 type FormState = {
   cliente: string;
-  produto: string;
-  quantidade: string;
-  precoKg: string;
+  produtoVendido: string; // SKU: Nome do Produto + Tamanho + Cor
+  quantidade: string; // Número de pares
+  precoUnitario: string; // Novo campo para preço por unidade
   valorTotal: string;
-  dataEntrega: string;
-  telefoneCliente: string;
+  dataEnvio: string; // Adaptado de dataEntrega
+  clienteTelefone: string;
   enderecoEntrega: string;
   observacoes: string;
 };
 
-type StatusType = 'pendente' | 'processando' | 'concluido' | 'cancelado';
+type StatusType = 'pendente' | 'processando' | 'enviado' | 'entregue' | 'cancelado';
 type FilterType = 'todos' | StatusType;
 type PriorityType = 'baixa' | 'media' | 'alta';
 
 // FORMULÁRIO
-const PedidoForm = memo(({ 
+const VendaForm = memo(({ 
   formState, 
   onFormChange,
   onCalculateTotal 
@@ -76,8 +78,8 @@ const PedidoForm = memo(({
           <TextInput 
             style={styles.inputField} 
             placeholder="(00) 00000-0000" 
-            value={formState.telefoneCliente} 
-            onChangeText={v => onFormChange('telefoneCliente', v)} 
+            value={formState.clienteTelefone} 
+            onChangeText={v => onFormChange('clienteTelefone', v)} 
             placeholderTextColor="#94A3B8"
             keyboardType="phone-pad"
           />
@@ -85,14 +87,14 @@ const PedidoForm = memo(({
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Produto *</Text>
+        <Text style={styles.inputLabel}>Produto/SKU Vendido *</Text>
         <View style={styles.inputWithIcon}>
-          <Ionicons name="fish-outline" size={20} color="#64748B" style={styles.inputIcon} />
+          <Ionicons name="pricetags-outline" size={20} color="#64748B" style={styles.inputIcon} />
           <TextInput 
             style={styles.inputField} 
-            placeholder="Ex: Tilápia Inteira 500g" 
-            value={formState.produto} 
-            onChangeText={v => onFormChange('produto', v)} 
+            placeholder="Ex: Air Max 42 Preto/Branco" 
+            value={formState.produtoVendido} 
+            onChangeText={v => onFormChange('produtoVendido', v)} 
             placeholderTextColor="#94A3B8"
           />
         </View>
@@ -100,12 +102,12 @@ const PedidoForm = memo(({
 
       <View style={styles.inputRow}>
         <View style={[styles.inputGroup, { flex: 1 }]}>
-          <Text style={styles.inputLabel}>Quantidade (kg) *</Text>
+          <Text style={styles.inputLabel}>Quantidade (Pares) *</Text>
           <View style={styles.inputWithIcon}>
             <Ionicons name="cube-outline" size={20} color="#64748B" style={styles.inputIcon} />
             <TextInput 
               style={styles.inputField} 
-              placeholder="0.0" 
+              placeholder="1" 
               value={formState.quantidade} 
               onChangeText={v => {
                 onFormChange('quantidade', v);
@@ -118,15 +120,15 @@ const PedidoForm = memo(({
         </View>
         
         <View style={[styles.inputGroup, { flex: 1 }]}>
-          <Text style={styles.inputLabel}>Preço/kg (R$) *</Text>
+          <Text style={styles.inputLabel}>Preço/Unidade (R$) *</Text>
           <View style={styles.inputWithIcon}>
             <Ionicons name="cash-outline" size={20} color="#64748B" style={styles.inputIcon} />
             <TextInput 
               style={styles.inputField} 
               placeholder="0.00" 
-              value={formState.precoKg} 
+              value={formState.precoUnitario} 
               onChangeText={v => {
-                onFormChange('precoKg', v);
+                onFormChange('precoUnitario', v);
                 onCalculateTotal();
               }} 
               keyboardType="numeric" 
@@ -142,14 +144,14 @@ const PedidoForm = memo(({
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Data de Entrega *</Text>
+        <Text style={styles.inputLabel}>Data de Envio *</Text>
         <View style={styles.inputWithIcon}>
           <Ionicons name="calendar-outline" size={20} color="#64748B" style={styles.inputIcon} />
           <TextInput 
             style={styles.inputField} 
             placeholder="DD/MM/AAAA" 
-            value={formState.dataEntrega} 
-            onChangeText={v => onFormChange('dataEntrega', v)} 
+            value={formState.dataEnvio} 
+            onChangeText={v => onFormChange('dataEnvio', v)} 
             placeholderTextColor="#94A3B8"
           />
         </View>
@@ -190,9 +192,9 @@ const PedidoForm = memo(({
 });
 
 // TELA PRINCIPAL
-export default function PedidosScreen() {
-  const [pedidos, setPedidos] = useState<Pedido[]>([]);
-  const [filteredPedidos, setFilteredPedidos] = useState<Pedido[]>([]);
+export default function VendasScreen() { // Renomeado
+  const [vendas, setVendas] = useState<Venda[]>([]); // Renomeado
+  const [filteredVendas, setFilteredVendas] = useState<Venda[]>([]); // Renomeado
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('todos');
   const user = auth.currentUser;
@@ -202,14 +204,15 @@ export default function PedidosScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [isStatusModalVisible, setIsStatusModalVisible] = useState(false);
-  const [currentPedido, setCurrentPedido] = useState<Pedido | null>(null);
+  const [currentVenda, setCurrentVenda] = useState<Venda | null>(null); // Renomeado
   const [passwordInput, setPasswordInput] = useState('');
   const [statusPasswordInput, setStatusPasswordInput] = useState('');
   const [newStatus, setNewStatus] = useState<StatusType>('pendente');
   
+  // Estado do formulário adaptado
   const [formState, setFormState] = useState<FormState>({
-    cliente: '', produto: '', quantidade: '', precoKg: '',
-    valorTotal: '0.00', dataEntrega: '', telefoneCliente: '',
+    cliente: '', produtoVendido: '', quantidade: '', precoUnitario: '',
+    valorTotal: '0.00', dataEnvio: '', clienteTelefone: '',
     enderecoEntrega: '', observacoes: ''
   });
   
@@ -219,54 +222,55 @@ export default function PedidosScreen() {
 
   useEffect(() => {
     if (!user) return;
-    const pedidosRef = ref(database, `users/${user.uid}/orders`);
-    const unsubscribe = onValue(pedidosRef, (snapshot) => {
+    // Altera o caminho do Firebase de 'orders' para 'vendas'
+    const vendasRef = ref(database, `users/${user.uid}/vendas`);
+    const unsubscribe = onValue(vendasRef, (snapshot) => {
       const data = snapshot.val();
-      const loadedPedidos = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
-      setPedidos(loadedPedidos.sort((a, b) => b.timestamp - a.timestamp));
+      const loadedVendas = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
+      setVendas(loadedVendas.sort((a, b) => b.timestamp - a.timestamp)); // Renomeado
       Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
     });
     return unsubscribe;
   }, [user]);
 
   useEffect(() => {
-    let result = pedidos;
+    let result = vendas;
     if (filterType !== 'todos') result = result.filter(p => p.status === filterType);
     if (searchQuery.trim()) {
       result = result.filter(p =>
         p.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.produto.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.telefoneCliente && p.telefoneCliente.includes(searchQuery))
+        p.produtoVendido.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.clienteTelefone && p.clienteTelefone.includes(searchQuery))
       );
     }
-    setFilteredPedidos(result);
-  }, [pedidos, searchQuery, filterType]);
+    setFilteredVendas(result);
+  }, [vendas, searchQuery, filterType]); // Renomeado
 
   const calculateTotal = useCallback(() => {
     const quantidade = parseFloat(formState.quantidade.replace(',', '.')) || 0;
-    const precoKg = parseFloat(formState.precoKg.replace(',', '.')) || 0;
-    setFormState(prev => ({ ...prev, valorTotal: (quantidade * precoKg).toFixed(2) }));
-  }, [formState.quantidade, formState.precoKg]);
+    const precoUnitario = parseFloat(formState.precoUnitario.replace(',', '.')) || 0;
+    setFormState(prev => ({ ...prev, valorTotal: (quantidade * precoUnitario).toFixed(2) }));
+  }, [formState.quantidade, formState.precoUnitario]); // Adaptado
 
-  const openModal = (pedido: Pedido | null) => {
-    setCurrentPedido(pedido);
-    if (pedido) {
-      const precoKg = pedido.quantidade > 0 ? (pedido.valor / pedido.quantidade).toFixed(2) : '0.00';
+  const openModal = (venda: Venda | null) => { // Renomeado
+    setCurrentVenda(venda);
+    if (venda) {
+      const precoUnitario = venda.quantidade > 0 ? (venda.valorTotal / venda.quantidade).toFixed(2) : '0.00';
       setFormState({
-        cliente: pedido.cliente, produto: pedido.produto,
-        quantidade: pedido.quantidade.toString(), precoKg: precoKg,
-        valorTotal: pedido.valor.toFixed(2), dataEntrega: pedido.dataEntrega,
-        telefoneCliente: pedido.telefoneCliente || '', enderecoEntrega: pedido.enderecoEntrega || '',
-        observacoes: pedido.observacoes || ''
+        cliente: venda.cliente, produtoVendido: venda.produtoVendido,
+        quantidade: venda.quantidade.toString(), precoUnitario: precoUnitario,
+        valorTotal: venda.valorTotal.toFixed(2), dataEnvio: venda.dataEnvio,
+        clienteTelefone: venda.clienteTelefone || '', enderecoEntrega: venda.enderecoEntrega || '',
+        observacoes: venda.observacoes || ''
       });
-      setStatus(pedido.status);
-      setPrioridade(pedido.prioridade || 'media');
+      setStatus(venda.status);
+      setPrioridade(venda.prioridade || 'media');
     } else {
       const nextWeek = new Date();
       nextWeek.setDate(nextWeek.getDate() + 7);
       setFormState({ 
-        cliente: '', produto: '', quantidade: '', precoKg: '', valorTotal: '0.00',
-        dataEntrega: nextWeek.toLocaleDateString('pt-BR'), telefoneCliente: '',
+        cliente: '', produtoVendido: '', quantidade: '', precoUnitario: '', valorTotal: '0.00',
+        dataEnvio: nextWeek.toLocaleDateString('pt-BR'), clienteTelefone: '',
         enderecoEntrega: '', observacoes: ''
       });
       setStatus('pendente');
@@ -280,40 +284,46 @@ export default function PedidosScreen() {
   }, []);
 
   const handleSave = async () => {
-    const { cliente, produto, quantidade, precoKg, dataEntrega } = formState;
-    if (!cliente || !produto || !quantidade || !precoKg || !dataEntrega) {
+    const { cliente, produtoVendido, quantidade, precoUnitario, dataEnvio } = formState;
+    if (!cliente || !produtoVendido || !quantidade || !precoUnitario || !dataEnvio) {
       return Alert.alert("Atenção", "Preencha todos os campos obrigatórios (*).");
     }
     if (!user) return;
     setIsSaving(true);
 
     const quantidadeNum = parseFloat(quantidade.replace(',', '.'));
-    const precoKgNum = parseFloat(precoKg.replace(',', '.'));
+    const precoUnitarioNum = parseFloat(precoUnitario.replace(',', '.'));
 
-    if (isNaN(quantidadeNum) || quantidadeNum <= 0 || isNaN(precoKgNum) || precoKgNum <= 0) {
+    if (isNaN(quantidadeNum) || quantidadeNum <= 0 || isNaN(precoUnitarioNum) || precoUnitarioNum <= 0) {
       Alert.alert("Erro", "Valores inválidos.");
       setIsSaving(false);
       return;
     }
 
-    const pedidoData: any = {
-      cliente, produto, quantidade: quantidadeNum, valor: quantidadeNum * precoKgNum,
-      dataEntrega, status, prioridade, telefoneCliente: formState.telefoneCliente || '',
+    const vendaData: Venda = { // Venda type
+      id: currentVenda?.id || '',
+      cliente, produtoVendido, quantidade: quantidadeNum, valorTotal: quantidadeNum * precoUnitarioNum,
+      dataEnvio, status, prioridade, clienteTelefone: formState.clienteTelefone || '',
       enderecoEntrega: formState.enderecoEntrega || '', observacoes: formState.observacoes || '',
-      timestamp: currentPedido?.timestamp || Date.now(), updatedAt: new Date().toISOString(),
+      timestamp: currentVenda?.timestamp || Date.now(), updatedAt: new Date().toISOString(),
+      lojaOrigemId: currentVenda?.lojaOrigemId || 'N/A', // Placeholder, idealmente deve ser selecionado
+      status: status as StatusType,
+      formaPagamento: currentVenda?.formaPagamento,
     };
 
     try {
-      if (currentPedido) {
-        await update(ref(database, `users/${user.uid}/orders/${currentPedido.id}`), {
-          ...pedidoData, createdAt: currentPedido.createdAt || new Date().toISOString()
+      if (currentVenda) {
+        // Usa o caminho 'vendas'
+        await update(ref(database, `users/${user.uid}/vendas/${currentVenda.id}`), {
+          ...vendaData, createdAt: currentVenda.createdAt || new Date().toISOString()
         });
-        Alert.alert("Sucesso", "Pedido atualizado!");
+        Alert.alert("Sucesso", "Venda atualizada!");
       } else {
-        await set(push(ref(database, `users/${user.uid}/orders`)), {
-          ...pedidoData, createdAt: new Date().toISOString()
+        // Usa o caminho 'vendas'
+        await set(push(ref(database, `users/${user.uid}/vendas`)), {
+          ...vendaData, id: undefined, createdAt: new Date().toISOString()
         });
-        Alert.alert("Sucesso", "Pedido criado!");
+        Alert.alert("Sucesso", "Venda registrada!");
       }
       setIsModalVisible(false);
     } catch (e) {
@@ -323,18 +333,19 @@ export default function PedidosScreen() {
     }
   };
 
-  const openDeleteModal = (pedido: Pedido) => {
-    setCurrentPedido(pedido);
+  const openDeleteModal = (venda: Venda) => { // Renomeado
+    setCurrentVenda(venda);
     setPasswordInput('');
     setIsDeleteModalVisible(true);
   }
 
   const handleDelete = async () => {
     if(passwordInput !== ADMIN_PASSWORD) return Alert.alert("Falha", "Senha incorreta.");
-    if(!user || !currentPedido) return;
+    if(!user || !currentVenda) return;
     try {
-      await remove(ref(database, `users/${user.uid}/orders/${currentPedido.id}`));
-      Alert.alert("Sucesso", "Pedido excluído.");
+      // Usa o caminho 'vendas'
+      await remove(ref(database, `users/${user.uid}/vendas/${currentVenda.id}`));
+      Alert.alert("Sucesso", "Venda excluída.");
       setIsDeleteModalVisible(false);
       setPasswordInput('');
     } catch (e) {
@@ -342,8 +353,8 @@ export default function PedidosScreen() {
     }
   };
 
-  const openStatusModal = (pedido: Pedido, newStatus: StatusType) => {
-    setCurrentPedido(pedido);
+  const openStatusModal = (venda: Venda, newStatus: StatusType) => { // Renomeado
+    setCurrentVenda(venda);
     setNewStatus(newStatus);
     setStatusPasswordInput('');
     setIsStatusModalVisible(true);
@@ -351,9 +362,10 @@ export default function PedidosScreen() {
 
   const handleStatusChange = async () => {
     if(statusPasswordInput !== STATUS_CHANGE_PASSWORD) return Alert.alert("Falha", "Senha incorreta.");
-    if(!user || !currentPedido) return;
+    if(!user || !currentVenda) return;
     try {
-      await update(ref(database, `users/${user.uid}/orders/${currentPedido.id}`), {
+      // Usa o caminho 'vendas'
+      await update(ref(database, `users/${user.uid}/vendas/${currentVenda.id}`), {
         status: newStatus, updatedAt: new Date().toISOString()
       });
       Alert.alert("Sucesso", "Status alterado!");
@@ -364,11 +376,13 @@ export default function PedidosScreen() {
     }
   };
 
+  // Status adaptados para Venda (enviado, entregue)
   const getStatusStyle = (status: StatusType) => {
     switch(status) {
       case 'pendente': return { color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)', icon: 'time-outline' };
       case 'processando': return { color: '#0EA5E9', bg: 'rgba(14, 165, 233, 0.15)', icon: 'sync-outline' };
-      case 'concluido': return { color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)', icon: 'checkmark-circle-outline' };
+      case 'enviado': return { color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)', icon: 'paper-plane-outline' };
+      case 'entregue': return { color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)', icon: 'checkmark-circle-outline' };
       case 'cancelado': return { color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)', icon: 'close-circle-outline' };
       default: return { color: '#64748B', bg: 'rgba(100, 116, 139, 0.15)', icon: 'help-circle-outline'};
     }
@@ -385,58 +399,66 @@ export default function PedidosScreen() {
 
   const getNextStatus = (currentStatus: StatusType): StatusType[] => {
     switch(currentStatus) {
-      case 'pendente': return ['processando', 'concluido', 'cancelado'];
-      case 'processando': return ['concluido', 'cancelado'];
-      case 'concluido': return ['pendente'];
-      case 'cancelado': return ['pendente'];
+      case 'pendente': return ['processando', 'cancelado'];
+      case 'processando': return ['enviado', 'cancelado'];
+      case 'enviado': return ['entregue', 'cancelado'];
+      case 'entregue': return []; // Finalizado
+      case 'cancelado': return ['pendente']; // Reativar
       default: return [];
     }
   }
 
-  const renderItem: ListRenderItem<Pedido> = ({ item }) => {
+  const renderItem: ListRenderItem<Venda> = ({ item }) => { // Venda type
     const statusStyle = getStatusStyle(item.status);
     const priorityStyle = getPriorityStyle(item.prioridade || 'media');
     const nextStatusOptions = getNextStatus(item.status);
+
+    // Calcula preço unitário para exibição
+    const precoUnitario = item.quantidade > 0 ? (item.valorTotal / item.quantidade).toFixed(2) : '0.00';
 
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleContainer}>
             <Text style={styles.cardTitle}>{item.cliente}</Text>
-            {item.telefoneCliente && (
+            {item.clienteTelefone && (
               <View style={styles.phoneContainer}>
                 <Ionicons name="call-outline" size={12} color="#64748B" />
-                <Text style={styles.cardPhone}>{item.telefoneCliente}</Text>
+                <Text style={styles.cardPhone}>{item.clienteTelefone}</Text>
               </View>
             )}
           </View>
           <View style={styles.badgesContainer}>
             <View style={[styles.priorityBadge, {backgroundColor: priorityStyle.bg}]}>
               <Text style={[styles.priorityText, {color: priorityStyle.color}]}>
-                {item.prioridade || 'média'}
+                Prioridade: {item.prioridade || 'média'}
               </Text>
             </View>
             <View style={[styles.statusBadge, {backgroundColor: statusStyle.bg}]}>
               <Ionicons name={statusStyle.icon as any} size={12} color={statusStyle.color} />
-              <Text style={[styles.statusText, {color: statusStyle.color}]}>{item.status}</Text>
+              <Text style={[styles.statusText, {color: statusStyle.color}]}>{statusStyle.label}</Text>
             </View>
           </View>
         </View>
         
-        <Text style={styles.cardProduct}>{item.produto}</Text>
+        <Text style={styles.cardProduct}>{item.produtoVendido}</Text>
         
         <View style={styles.cardDetails}>
           <View style={styles.detailItem}>
             <Ionicons name="cube-outline" size={14} color="#64748B" />
-            <Text style={styles.detailValue}>{item.quantidade} kg</Text>
+            <Text style={styles.detailValue}>{item.quantidade} pares</Text>
+          </View>
+          <View style={styles.detailItem}>
+            <Ionicons name="pricetag-outline" size={14} color="#64748B" />
+            <Text style={styles.detailValue}>R$ {precoUnitario} / un</Text>
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="cash-outline" size={14} color="#64748B" />
-            <Text style={styles.detailValue}>R$ {item.valor.toFixed(2)}</Text>
+            <Text style={styles.detailValue}>Total: R$ {item.valorTotal.toFixed(2)}</Text>
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="calendar-outline" size={14} color="#64748B" />
-            <Text style={styles.detailValue}>{item.dataEntrega}</Text>
+            <Text style={styles.detailValue}>{item.dataEnvio}</Text>
           </View>
         </View>
 
@@ -458,7 +480,7 @@ export default function PedidosScreen() {
                 >
                   <Ionicons name={getStatusStyle(statusOption).icon as any} size={12} color={getStatusStyle(statusOption).color} />
                   <Text style={[styles.statusActionText, { color: getStatusStyle(statusOption).color }]}>
-                    {statusOption}
+                    {getStatusStyle(statusOption).label}
                   </Text>
                 </Pressable>
               ))}
@@ -486,9 +508,9 @@ export default function PedidosScreen() {
         <Animated.View style={[styles.container, {opacity: fadeAnim}]}>
           <View style={styles.header}>
             <View>
-              <Text style={styles.screenTitle}>Pedidos</Text>
+              <Text style={styles.screenTitle}>Vendas</Text>
               <Text style={styles.screenSubtitle}>
-                {pedidos.length} {pedidos.length === 1 ? 'pedido' : 'pedidos'}
+                {vendas.length} {vendas.length === 1 ? 'venda registrada' : 'vendas registradas'}
               </Text>
             </View>
             <Pressable style={styles.addButton} onPress={() => openModal(null)}>
@@ -500,7 +522,7 @@ export default function PedidosScreen() {
             <Ionicons name="search-outline" size={20} color="#64748B" />
             <TextInput 
               style={styles.searchInput} 
-              placeholder="Buscar pedidos..." 
+              placeholder="Buscar vendas por cliente ou produto..." 
               placeholderTextColor="#94A3B8" 
               value={searchQuery} 
               onChangeText={setSearchQuery}
@@ -508,47 +530,50 @@ export default function PedidosScreen() {
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContainer}>
-            {(['todos', 'pendente', 'processando', 'concluido', 'cancelado'] as FilterType[]).map((type) => (
-              <Pressable 
-                key={type} 
-                style={[styles.filterChip, filterType === type && styles.filterChipActive]} 
-                onPress={() => setFilterType(type)}
-              >
-                {type !== 'todos' && (
-                  <Ionicons 
-                    name={getStatusStyle(type as StatusType).icon as any} 
-                    size={14} 
-                    color={filterType === type ? '#fff' : 'rgba(255,255,255,0.7)'} 
-                  />
-                )}
-                <Text style={[styles.filterChipText, filterType === type && styles.filterChipTextActive]}>
-                  {type}
-                </Text>
-              </Pressable>
-            ))}
+            {(['todos', 'pendente', 'processando', 'enviado', 'entregue', 'cancelado'] as FilterType[]).map((type) => {
+              const style = getStatusStyle(type as StatusType);
+              return (
+                <Pressable 
+                  key={type} 
+                  style={[styles.filterChip, filterType === type && styles.filterChipActive]} 
+                  onPress={() => setFilterType(type)}
+                >
+                  {type !== 'todos' && (
+                    <Ionicons 
+                      name={style.icon as any} 
+                      size={14} 
+                      color={filterType === type ? '#fff' : 'rgba(255,255,255,0.7)'} 
+                    />
+                  )}
+                  <Text style={[styles.filterChipText, filterType === type && styles.filterChipTextActive]}>
+                    {style.label || type}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </ScrollView>
 
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{pedidos.filter(p => p.status === 'pendente').length}</Text>
+              <Text style={styles.statValue}>{vendas.filter(p => p.status === 'pendente').length}</Text>
               <Text style={styles.statLabel}>Pendentes</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={[styles.statValue, {color: '#0EA5E9'}]}>
-                {pedidos.filter(p => p.status === 'processando').length}
+                {vendas.filter(p => p.status === 'processando').length}
               </Text>
               <Text style={styles.statLabel}>Processando</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={[styles.statValue, {color: '#10B981'}]}>
-                {pedidos.filter(p => p.status === 'concluido').length}
+                {vendas.filter(p => p.status === 'entregue').length}
               </Text>
-              <Text style={styles.statLabel}>Concluídos</Text>
+              <Text style={styles.statLabel}>Entregues</Text>
             </View>
           </View>
 
           <FlatList
-            data={filteredPedidos}
+            data={filteredVendas}
             renderItem={renderItem}
             keyExtractor={item => item.id}
             contentContainerStyle={styles.listContent}
@@ -557,9 +582,9 @@ export default function PedidosScreen() {
                 <View style={styles.emptyIconContainer}>
                   <Ionicons name="receipt-outline" size={64} color="rgba(255,255,255,0.3)" />
                 </View>
-                <Text style={styles.emptyText}>Nenhum pedido encontrado</Text>
+                <Text style={styles.emptyText}>Nenhuma venda encontrada</Text>
                 <Text style={styles.emptySubtext}>
-                  {searchQuery || filterType !== 'todos' ? 'Ajuste os filtros' : 'Crie seu primeiro pedido'}
+                  {searchQuery || filterType !== 'todos' ? 'Ajuste os filtros' : 'Crie sua primeira venda'}
                 </Text>
               </View>
             }
@@ -573,19 +598,19 @@ export default function PedidosScreen() {
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
-                  {currentPedido ? 'Editar Pedido' : 'Novo Pedido'}
+                  {currentVenda ? 'Editar Venda' : 'Nova Venda'}
                 </Text>
                 <Pressable onPress={() => setIsModalVisible(false)}>
                   <Ionicons name="close" size={24} color="#64748B" />
                 </Pressable>
               </View>
               
-              <PedidoForm formState={formState} onFormChange={handleFormChange} onCalculateTotal={calculateTotal} />
+              <VendaForm formState={formState} onFormChange={handleFormChange} onCalculateTotal={calculateTotal} />
 
               <View style={styles.modalSection}>
                 <Text style={styles.sectionLabel}>Status</Text>
                 <View style={styles.optionsRow}>
-                  {(['pendente', 'processando', 'concluido', 'cancelado'] as StatusType[]).map((s) => {
+                  {(['pendente', 'processando', 'enviado', 'entregue', 'cancelado'] as StatusType[]).map((s) => {
                     const style = getStatusStyle(s);
                     return (
                       <Pressable 
@@ -594,7 +619,7 @@ export default function PedidosScreen() {
                         onPress={() => setStatus(s)}
                       >
                         <Ionicons name={style.icon as any} size={16} color={status === s ? style.color : '#64748B'} />
-                        <Text style={[styles.optionText, status === s && {color: style.color}]}>{s}</Text>
+                        <Text style={[styles.optionText, status === s && {color: style.color}]}>{style.label}</Text>
                       </Pressable>
                     )
                   })}
@@ -624,14 +649,14 @@ export default function PedidosScreen() {
                   <Text style={styles.cancelButtonText}>Cancelar</Text>
                 </Pressable>
                 <Pressable 
-                  style={[styles.saveButton, (!formState.cliente || !formState.produto || !formState.quantidade || !formState.precoKg || !formState.dataEntrega || isSaving) && styles.buttonDisabled]} 
+                  style={[styles.saveButton, (!formState.cliente || !formState.produtoVendido || !formState.quantidade || !formState.precoUnitario || !formState.dataEnvio || isSaving) && styles.buttonDisabled]} 
                   onPress={handleSave} 
-                  disabled={!formState.cliente || !formState.produto || !formState.quantidade || !formState.precoKg || !formState.dataEntrega || isSaving}
+                  disabled={!formState.cliente || !formState.produtoVendido || !formState.quantidade || !formState.precoUnitario || !formState.dataEnvio || isSaving}
                 >
                   {isSaving ? <ActivityIndicator color="#fff" size="small" /> : (
                     <>
                       <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-                      <Text style={styles.saveButtonText}>{currentPedido ? 'Atualizar' : 'Criar'}</Text>
+                      <Text style={styles.saveButtonText}>{currentVenda ? 'Atualizar' : 'Criar'}</Text>
                     </>
                   )}
                 </Pressable>
@@ -647,9 +672,9 @@ export default function PedidosScreen() {
               <View style={styles.statusModalIcon}>
                 <Ionicons name="trash-outline" size={32} color="#EF4444" />
               </View>
-              <Text style={styles.statusModalTitle}>Excluir Pedido</Text>
+              <Text style={styles.statusModalTitle}>Excluir Venda</Text>
               <Text style={styles.statusModalText}>
-                Tem certeza que deseja excluir o pedido de {currentPedido?.cliente}?
+                Tem certeza que deseja excluir a venda de {currentVenda?.cliente}?
               </Text>
               <TextInput
                 style={styles.passwordInput}
@@ -684,7 +709,7 @@ export default function PedidosScreen() {
               </View>
               <Text style={styles.statusModalTitle}>Alterar Status</Text>
               <Text style={styles.statusModalText}>
-                Deseja alterar o status do pedido de {currentPedido?.cliente} para "{newStatus}"?
+                Deseja alterar o status da venda de {currentVenda?.cliente} para "{getStatusStyle(newStatus).label}"?
               </Text>
               <TextInput
                 style={styles.passwordInput}
@@ -877,6 +902,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
+    flexWrap: 'wrap',
+    gap: 10,
   },
   detailItem: {
     flexDirection: 'row',
@@ -1010,6 +1037,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   totalLabel: {
     fontSize: 16,
@@ -1045,6 +1074,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     backgroundColor: '#fff',
+    gap: 4,
   },
   optionText: {
     fontSize: 14,

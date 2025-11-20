@@ -17,7 +17,8 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Lote, Peixe, Tanque } from "../../app/(tabs)";
+// Importa os novos tipos: EstoqueSKU (antigo Lote), Produto (antigo Peixe), Loja (antigo Tanque)
+import { EstoqueSKU, Loja, Produto } from "../../app/(tabs)";
 import { auth, database } from "../services/connectionFirebase";
 
 const { width } = Dimensions.get('window');
@@ -25,67 +26,77 @@ const ADMIN_PASSWORD = 'admin123';
 
 // --- TYPES ---
 type FormState = {
-  nomeLote: string;
+  tamanho: string;
+  cor: string;
   quantidade: string;
   quantidadeInicial: string;
   fornecedor: string;
-  pesoInicialMedio: string;
-  comprimentoInicialMedio: string;
-  dataInicio: string;
-  dataEstimadaColheita: string;
+  dataEntrada: string;
   observacoes: string;
 };
 
-type LoteFormProps = {
+type EstoqueFormProps = {
   formState: FormState;
   onFormChange: (field: keyof FormState, value: string) => void;
-  onSelectEspecie: () => void;
-  onSelectTanque: () => void;
-  selectedPeixe: Peixe | null;
-  selectedTanque: Tanque | null;
+  onSelectProduto: () => void;
+  onSelectLoja: () => void;
+  selectedProduto: Produto | null;
+  selectedLoja: Loja | null;
   isEditing: boolean;
 };
 
 // --- COMPONENTES REUTILIZÁVEIS ---
-const LoteForm = memo(({ 
+const EstoqueForm = memo(({ 
   formState, 
   onFormChange, 
-  onSelectEspecie, 
-  onSelectTanque, 
-  selectedPeixe, 
-  selectedTanque,
+  onSelectProduto, 
+  onSelectLoja, 
+  selectedProduto, 
+  selectedLoja,
   isEditing 
-}: LoteFormProps) => {
+}: EstoqueFormProps) => {
   const today = new Date().toISOString().split('T')[0];
-  const estimatedDate = new Date();
-  estimatedDate.setMonth(estimatedDate.getMonth() + 6); // +6 meses estimado
-  const defaultEstimatedDate = estimatedDate.toISOString().split('T')[0];
 
   return (
     <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+      {/* SELEÇÃO DO PRODUTO (MODELO) */}
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Nome do Lote *</Text>
-        <TextInput 
-          style={styles.input} 
-          placeholder="Ex: LOTE-2025-A" 
-          value={formState.nomeLote} 
-          onChangeText={v => onFormChange('nomeLote', v)} 
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Espécie *</Text>
-        <Pressable style={styles.selectButton} onPress={onSelectEspecie}>
-          <Text style={[styles.selectButtonText, !selectedPeixe && styles.placeholderText]}>
-            {selectedPeixe ? `${selectedPeixe.nomePopular}` : "Selecione uma espécie"}
+        <Text style={styles.inputLabel}>Produto / Modelo *</Text>
+        <Pressable style={styles.selectButton} onPress={onSelectProduto}>
+          <Text style={[styles.selectButtonText, !selectedProduto && styles.placeholderText]}>
+            {selectedProduto ? `${selectedProduto.nomeModelo} (${selectedProduto.marca})` : "Selecione o modelo do tênis"}
           </Text>
           <Ionicons name="chevron-down" size={20} color="#64748B" />
         </Pressable>
       </View>
 
+      {/* DETALHES DO SKU */}
       <View style={styles.inputRow}>
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Quantidade *</Text>
+          <Text style={styles.inputLabel}>Tamanho *</Text>
+          <TextInput 
+            style={styles.input} 
+            placeholder="Ex: 42" 
+            value={formState.tamanho} 
+            onChangeText={v => onFormChange('tamanho', v)} 
+            keyboardType="numeric" 
+          />
+        </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Cor *</Text>
+          <TextInput 
+            style={styles.input} 
+            placeholder="Ex: Preto/Branco" 
+            value={formState.cor} 
+            onChangeText={v => onFormChange('cor', v)} 
+          />
+        </View>
+      </View>
+
+      {/* QUANTIDADE E FORNECEDOR */}
+      <View style={styles.inputRow}>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Quantidade Atual *</Text>
           <TextInput 
             style={styles.input} 
             placeholder="0" 
@@ -95,75 +106,44 @@ const LoteForm = memo(({
           />
         </View>
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Peso Inicial (g) *</Text>
-          <TextInput 
-            style={styles.input} 
-            placeholder="0.0" 
-            value={formState.pesoInicialMedio} 
-            onChangeText={v => onFormChange('pesoInicialMedio', v)} 
-            keyboardType="numeric" 
-          />
-        </View>
-      </View>
-
-      <View style={styles.inputRow}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Comprimento (cm)</Text>
-          <TextInput 
-            style={styles.input} 
-            placeholder="0.0" 
-            value={formState.comprimentoInicialMedio} 
-            onChangeText={v => onFormChange('comprimentoInicialMedio', v)} 
-            keyboardType="numeric" 
-          />
-        </View>
-        <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Fornecedor</Text>
           <TextInput 
             style={styles.input} 
-            placeholder="Nome do fornecedor" 
+            placeholder="Nome da Marca/Distribuidor" 
             value={formState.fornecedor} 
             onChangeText={v => onFormChange('fornecedor', v)} 
           />
         </View>
       </View>
 
-      <View style={styles.inputRow}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Data Início *</Text>
-          <TextInput 
-            style={styles.input} 
-            placeholder="YYYY-MM-DD"
-            value={formState.dataInicio || today}
-            onChangeText={v => onFormChange('dataInicio', v)}
-          />
-        </View>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Previsão Colheita</Text>
-          <TextInput 
-            style={styles.input} 
-            placeholder="YYYY-MM-DD"
-            value={formState.dataEstimadaColheita || defaultEstimatedDate}
-            onChangeText={v => onFormChange('dataEstimadaColheita', v)}
-          />
-        </View>
+      {/* DATA DE ENTRADA */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>Data de Entrada *</Text>
+        <TextInput 
+          style={styles.input} 
+          placeholder="YYYY-MM-DD"
+          value={formState.dataEntrada || today}
+          onChangeText={v => onFormChange('dataEntrada', v)}
+        />
       </View>
 
+      {/* SELEÇÃO DA LOJA/CD */}
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Tanque *</Text>
-        <Pressable style={styles.selectButton} onPress={onSelectTanque}>
-          <Text style={[styles.selectButtonText, !selectedTanque && styles.placeholderText]}>
-            {selectedTanque ? `${selectedTanque.name} - ${selectedTanque.location}` : "Selecione um tanque"}
+        <Text style={styles.inputLabel}>Loja / CD *</Text>
+        <Pressable style={styles.selectButton} onPress={onSelectLoja}>
+          <Text style={[styles.selectButtonText, !selectedLoja && styles.placeholderText]}>
+            {selectedLoja ? `${selectedLoja.nome} - ${selectedLoja.localizacao}` : "Selecione a Loja/CD de estoque"}
           </Text>
           <Ionicons name="chevron-down" size={20} color="#64748B" />
         </Pressable>
       </View>
 
+      {/* OBSERVAÇÕES */}
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Observações</Text>
         <TextInput 
           style={[styles.input, styles.textArea]} 
-          placeholder="Anotações importantes sobre o lote..." 
+          placeholder="Anotações importantes sobre o lote de estoque..." 
           value={formState.observacoes} 
           onChangeText={v => onFormChange('observacoes', v)}
           multiline
@@ -174,92 +154,75 @@ const LoteForm = memo(({
   );
 });
 
-const LoteCard = memo(({ item, onEdit, onDelete }: { 
-  item: Lote; 
-  onEdit: (lote: Lote) => void; 
-  onDelete: (lote: Lote) => void; 
+const EstoqueCard = memo(({ item, onEdit, onDelete }: { 
+  item: EstoqueSKU; 
+  onEdit: (sku: EstoqueSKU) => void; 
+  onDelete: (sku: EstoqueSKU) => void; 
 }) => {
   const getStatusColor = (status?: string) => {
     switch (status) {
-      case 'ativo': return '#10B981';
-      case 'colhido': return '#8B5CF6';
-      case 'transferido': return '#F59E0B';
-      case 'doente': return '#EF4444';
+      case 'disponivel': return '#10B981';
+      case 'esgotado': return '#EF4444';
+      case 'reservado': return '#F59E0B';
       default: return '#6B7280';
     }
   };
 
-  const getFaseColor = (fase?: string) => {
-    switch (fase) {
-      case 'alevinagem': return '#0EA5E9';
-      case 'recria': return '#F59E0B';
-      case 'engorda': return '#10B981';
-      case 'terminacao': return '#8B5CF6';
-      default: return '#6B7280';
-    }
-  };
-
-  const calculateDiasCultivo = (dataInicio: string) => {
-    const inicio = new Date(dataInicio);
+  const calculateDiasNoEstoque = (dataEntrada: string) => {
+    const entrada = new Date(dataEntrada);
     const hoje = new Date();
-    const diffTime = Math.abs(hoje.getTime() - inicio.getTime());
+    const diffTime = Math.abs(hoje.getTime() - entrada.getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  const diasCultivo = calculateDiasCultivo(item.dataInicio);
+  const diasNoEstoque = calculateDiasNoEstoque(item.dataEntrada);
 
   return (
     <View style={styles.loteCard}>
       <View style={styles.cardHeader}>
         <View style={styles.cardTitleContainer}>
-          <Text style={styles.loteTitle}>{item.nomeLote}</Text>
+          <Text style={styles.loteTitle} numberOfLines={1}>{item.nomeProduto}</Text>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
             <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-              {item.status || 'ativo'}
+              {item.status || 'disponível'}
             </Text>
           </View>
         </View>
-        <Text style={styles.especieText}>{item.especie}</Text>
+        <Text style={styles.especieText}>
+          Tamanho {item.tamanho} • Cor: {item.cor}
+        </Text>
       </View>
 
       <View style={styles.cardContent}>
         <View style={styles.metricsContainer}>
           <View style={styles.metricItem}>
-            <Ionicons name="fish" size={16} color="#64748B" />
-            <Text style={styles.metricText}>{item.quantidade?.toLocaleString('pt-BR')} peixes</Text>
+            <Ionicons name="cube-outline" size={16} color="#64748B" />
+            <Text style={styles.metricText}>
+                {item.quantidade?.toLocaleString('pt-BR')} pares em estoque
+            </Text>
           </View>
           <View style={styles.metricItem}>
-            <Ionicons name="scale" size={16} color="#64748B" />
-            <Text style={styles.metricText}>{item.pesoInicialMedio}g inicial</Text>
+            <Ionicons name="enter-outline" size={16} color="#64748B" />
+            <Text style={styles.metricText}>Entrada: {item.dataEntrada}</Text>
           </View>
           <View style={styles.metricItem}>
-            <Ionicons name="calendar" size={16} color="#64748B" />
-            <Text style={styles.metricText}>{diasCultivo} dias</Text>
+            <Ionicons name="time-outline" size={16} color="#64748B" />
+            <Text style={styles.metricText}>{diasNoEstoque} dias no estoque</Text>
           </View>
         </View>
 
         <View style={styles.detailsContainer}>
           <Text style={styles.detailText}>
-            <Text style={styles.detailLabel}>Tanque: </Text>
-            {item.tanqueNome}
+            <Text style={styles.detailLabel}>Local: </Text>
+            {item.nomeLoja}
           </Text>
-          {item.faseCultivo && (
-            <View style={[styles.faseBadge, { backgroundColor: getFaseColor(item.faseCultivo) + '20' }]}>
-              <Text style={[styles.faseText, { color: getFaseColor(item.faseCultivo) }]}>
-                {item.faseCultivo}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {item.dataEstimadaColheita && (
-          <View style={styles.colheitaContainer}>
-            <Ionicons name="time" size={14} color="#F59E0B" />
-            <Text style={styles.colheitaText}>
-              Colheita: {new Date(item.dataEstimadaColheita).toLocaleDateString('pt-BR')}
+          <View style={[styles.faseBadge, { backgroundColor: '#0EA5E920' }]}>
+            <Text style={[styles.faseText, { color: '#0EA5E9' }]}>
+              {item.fornecedor || 'Marca Própria'}
             </Text>
           </View>
-        )}
+        </View>
+
       </View>
 
       <View style={styles.cardActions}>
@@ -278,9 +241,9 @@ const LoteCard = memo(({ item, onEdit, onDelete }: {
 
 // --- TELA PRINCIPAL ---
 export default function LotesScreen() {
-  const [lotes, setLotes] = useState<Lote[]>([]);
-  const [tanques, setTanques] = useState<Tanque[]>([]);
-  const [peixes, setPeixes] = useState<Peixe[]>([]);
+  const [estoque, setEstoque] = useState<EstoqueSKU[]>([]); // EstoqueSKU
+  const [lojas, setLojas] = useState<Loja[]>([]); // Lojas
+  const [produtos, setProdutos] = useState<Produto[]>([]); // Produtos
   const [loading, setLoading] = useState(true);
   const user = auth.currentUser;
 
@@ -288,111 +251,103 @@ export default function LotesScreen() {
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
-  const [tanqueModalVisible, setTanqueModalVisible] = useState(false);
-  const [especieModalVisible, setEspecieModalVisible] = useState(false);
+  const [lojaModalVisible, setLojaModalVisible] = useState(false); // Modal Loja
+  const [produtoModalVisible, setProdutoModalVisible] = useState(false); // Modal Produto
 
   // Estados para Dados
-  const [currentLote, setCurrentLote] = useState<Lote | null>(null);
+  const [currentSKU, setCurrentSKU] = useState<EstoqueSKU | null>(null); // SKU Atual
   const [passwordInput, setPasswordInput] = useState('');
   const [formState, setFormState] = useState<FormState>({
-    nomeLote: '', 
+    tamanho: '', 
+    cor: '', 
     quantidade: '', 
     quantidadeInicial: '',
     fornecedor: '', 
-    pesoInicialMedio: '', 
-    comprimentoInicialMedio: '',
-    dataInicio: '',
-    dataEstimadaColheita: '',
+    dataEntrada: '',
     observacoes: '',
   });
-  const [selectedTanque, setSelectedTanque] = useState<Tanque | null>(null);
-  const [selectedPeixe, setSelectedPeixe] = useState<Peixe | null>(null);
+  const [selectedLoja, setSelectedLoja] = useState<Loja | null>(null); // Loja Selecionada
+  const [selectedProduto, setSelectedProduto] = useState<Produto | null>(null); // Produto Selecionado
 
   useEffect(() => {
     if (!user) return;
     
     setLoading(true);
-    const lotesRef = ref(database, `users/${user.uid}/lots`);
-    const tanquesRef = ref(database, `users/${user.uid}/tanks`);
-    const peixesRef = ref(database, `users/${user.uid}/peixes`);
+    // NOVOS CAMINHOS DO FIREBASE: /estoque, /lojas, /produtos
+    const estoqueRef = ref(database, `users/${user.uid}/estoque`); 
+    const lojasRef = ref(database, `users/${user.uid}/lojas`); 
+    const produtosRef = ref(database, `users/${user.uid}/produtos`); 
 
-    const unsubLotes = onValue(lotesRef, (s) => {
+    const unsubEstoque = onValue(estoqueRef, (s) => {
       const data = s.val();
-      setLotes(data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : []);
+      setEstoque(data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : []);
       setLoading(false);
     });
     
-    const unsubTanques = onValue(tanquesRef, (s) => {
-      setTanques(s.val() ? Object.keys(s.val()).map(k => ({ id: k, ...s.val()[k] })) : []);
+    const unsubLojas = onValue(lojasRef, (s) => {
+      setLojas(s.val() ? Object.keys(s.val()).map(k => ({ id: k, ...s.val()[k] })) : []);
     });
     
-    const unsubPeixes = onValue(peixesRef, (s) => {
-      setPeixes(s.val() ? Object.keys(s.val()).map(k => ({ id: k, ...s.val()[k] })) : []);
+    const unsubProdutos = onValue(produtosRef, (s) => {
+      setProdutos(s.val() ? Object.keys(s.val()).map(k => ({ id: k, ...s.val()[k] })) : []);
     });
 
     return () => { 
-      unsubLotes(); 
-      unsubTanques(); 
-      unsubPeixes(); 
+      unsubEstoque(); 
+      unsubLojas(); 
+      unsubProdutos(); 
     };
   }, [user]);
 
   // Funções de Abertura de Modais
   const openAddModal = () => {
     const today = new Date().toISOString().split('T')[0];
-    const estimatedDate = new Date();
-    estimatedDate.setMonth(estimatedDate.getMonth() + 6);
-    const defaultEstimatedDate = estimatedDate.toISOString().split('T')[0];
-
-    setCurrentLote(null);
+    
+    setCurrentSKU(null);
     setFormState({ 
-      nomeLote: '', 
+      tamanho: '', 
+      cor: '', 
       quantidade: '', 
       quantidadeInicial: '',
       fornecedor: '', 
-      pesoInicialMedio: '', 
-      comprimentoInicialMedio: '',
-      dataInicio: today,
-      dataEstimadaColheita: defaultEstimatedDate,
+      dataEntrada: today,
       observacoes: '',
     });
-    setSelectedTanque(null);
-    setSelectedPeixe(null);
+    setSelectedLoja(null);
+    setSelectedProduto(null);
     setIsAddModalVisible(true);
   };
   
-  const openEditModal = (lote: Lote) => {
-    setCurrentLote(lote);
+  const openEditModal = (sku: EstoqueSKU) => {
+    setCurrentSKU(sku);
     setFormState({
-      nomeLote: lote.nomeLote,
-      quantidade: lote.quantidade.toString(),
-      quantidadeInicial: lote.quantidadeInicial?.toString() || lote.quantidade.toString(),
-      fornecedor: lote.fornecedor || '',
-      pesoInicialMedio: lote.pesoInicialMedio.toString(),
-      comprimentoInicialMedio: lote.comprimentoInicialMedio?.toString() || '',
-      dataInicio: lote.dataInicio,
-      dataEstimadaColheita: lote.dataEstimadaColheita || '',
-      observacoes: lote.observacoes || '',
+      tamanho: sku.tamanho.toString(),
+      cor: sku.cor,
+      quantidade: sku.quantidade.toString(),
+      quantidadeInicial: sku.quantidadeInicial?.toString() || sku.quantidade.toString(),
+      fornecedor: sku.fornecedor || '',
+      dataEntrada: sku.dataEntrada,
+      observacoes: sku.observacoes || '',
     });
-    setSelectedTanque(tanques.find(t => t.id === lote.tanqueId) || null);
-    setSelectedPeixe(peixes.find(p => p.nomePopular === lote.especie) || null);
+    setSelectedLoja(lojas.find(t => t.id === sku.lojaId) || null); // Loja
+    setSelectedProduto(produtos.find(p => p.nomeModelo === sku.nomeProduto) || null); // Produto
     setIsEditModalVisible(true);
   };
   
-  const openDeleteModal = (lote: Lote) => {
-    setCurrentLote(lote);
+  const openDeleteModal = (sku: EstoqueSKU) => {
+    setCurrentSKU(sku);
     setPasswordInput('');
     setIsDeleteModalVisible(true);
   };
 
-  const handleSelectTanque = (tanque: Tanque) => {
-    setSelectedTanque(tanque);
-    setTanqueModalVisible(false);
+  const handleSelectLoja = (loja: Loja) => {
+    setSelectedLoja(loja);
+    setLojaModalVisible(false);
   };
 
-  const handleSelectPeixe = (peixe: Peixe) => {
-    setSelectedPeixe(peixe);
-    setEspecieModalVisible(false);
+  const handleSelectProduto = (produto: Produto) => {
+    setSelectedProduto(produto);
+    setProdutoModalVisible(false);
   };
 
   const handleFormChange = (field: keyof FormState, value: string) => {
@@ -400,91 +355,86 @@ export default function LotesScreen() {
   };
   
   // Funções CRUD
-  const handleAddOrUpdateLote = async () => {
+  const handleAddOrUpdateSKU = async () => {
     const { 
-      nomeLote, 
+      tamanho, 
+      cor, 
       quantidade, 
       quantidadeInicial,
       fornecedor, 
-      pesoInicialMedio, 
-      comprimentoInicialMedio,
-      dataInicio,
-      dataEstimadaColheita,
+      dataEntrada,
       observacoes 
     } = formState;
     
-    if (!nomeLote || !quantidade || !selectedTanque || !selectedPeixe || !dataInicio) {
+    if (!tamanho || !cor || !quantidade || !selectedLoja || !selectedProduto || !dataEntrada) {
       return Alert.alert("Atenção", "Preencha os campos obrigatórios (*).");
     }
     
     if (!user) return;
     
     const quantidadeNum = parseInt(quantidade);
-    const pesoInicialNum = parseFloat(pesoInicialMedio.replace(',', '.')) || 0;
-    const comprimentoInicialNum = comprimentoInicialMedio ? parseFloat(comprimentoInicialMedio.replace(',', '.')) : undefined;
+    const tamanhoNum = parseInt(tamanho);
 
-    if (isNaN(quantidadeNum) || quantidadeNum <= 0) {
-      return Alert.alert("Erro", "Quantidade deve ser um número positivo.");
+    if (isNaN(quantidadeNum) || quantidadeNum < 0 || isNaN(tamanhoNum) || tamanhoNum <= 0) {
+      return Alert.alert("Erro", "Tamanho e Quantidade devem ser números válidos.");
     }
 
-    if (isNaN(pesoInicialNum) || pesoInicialNum <= 0) {
-      return Alert.alert("Erro", "Peso inicial deve ser um número positivo.");
-    }
-
-    const loteData: any = { 
-      nomeLote, 
-      especie: selectedPeixe.nomePopular, 
+    const skuData: EstoqueSKU = { 
+      id: currentSKU?.id || '',
+      produtoId: selectedProduto.id, 
+      nomeProduto: selectedProduto.nomeModelo, 
+      tamanho: tamanhoNum,
+      cor: cor,
       quantidade: quantidadeNum,
       quantidadeInicial: quantidadeInicial ? parseInt(quantidadeInicial) : quantidadeNum,
-      fornecedor: fornecedor || 'Não informado',
-      pesoInicialMedio: pesoInicialNum,
-      comprimentoInicialMedio: comprimentoInicialNum,
-      tanqueId: selectedTanque.id, 
-      tanqueNome: selectedTanque.name,
-      dataInicio,
-      dataEstimadaColheita: dataEstimadaColheita || null,
+      fornecedor: fornecedor || selectedProduto.marca,
+      lojaId: selectedLoja.id, 
+      nomeLoja: selectedLoja.nome,
+      dataEntrada: dataEntrada,
       observacoes: observacoes || '',
-      status: 'ativo',
-      faseCultivo: 'alevinagem',
-      createdAt: currentLote ? currentLote.createdAt : new Date().toISOString(),
+      status: quantidadeNum > 0 ? 'disponivel' : 'esgotado',
+      createdAt: currentSKU ? currentSKU.createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     try {
-      if (currentLote) {
-        await update(ref(database, `users/${user.uid}/lots/${currentLote.id}`), loteData);
-        Alert.alert("Sucesso", "Lote atualizado com sucesso!");
+      if (currentSKU) {
+        // Usa o caminho 'estoque'
+        await update(ref(database, `users/${user.uid}/estoque/${currentSKU.id}`), skuData);
+        Alert.alert("Sucesso", "Estoque SKU atualizado com sucesso!");
         setIsEditModalVisible(false);
       } else {
-        await set(push(ref(database, `users/${user.uid}/lots`)), loteData);
-        Alert.alert("Sucesso", "Lote criado com sucesso!");
+        // Usa o caminho 'estoque'
+        await set(push(ref(database, `users/${user.uid}/estoque`)), skuData);
+        Alert.alert("Sucesso", "Estoque SKU criado com sucesso!");
         setIsAddModalVisible(false);
       }
     } catch (error) { 
       console.error(error);
-      Alert.alert("Erro", "Ocorreu um erro ao salvar o lote."); 
+      Alert.alert("Erro", "Ocorreu um erro ao salvar o Estoque SKU."); 
     }
   };
 
-  const handleDeleteLote = async () => {
+  const handleDeleteSKU = async () => {
     if (passwordInput !== ADMIN_PASSWORD) {
       return Alert.alert("Falha na Autenticação", "A senha de administrador está incorreta.");
     }
     
-    if (!user || !currentLote) return;
+    if (!user || !currentSKU) return;
     
     try {
-      await remove(ref(database, `users/${user.uid}/lots/${currentLote.id}`));
-      Alert.alert("Sucesso", "Lote excluído permanentemente.");
+      // Usa o caminho 'estoque'
+      await remove(ref(database, `users/${user.uid}/estoque/${currentSKU.id}`));
+      Alert.alert("Sucesso", "Estoque SKU excluído permanentemente.");
       setIsDeleteModalVisible(false);
       setPasswordInput('');
     } catch (error) { 
-      Alert.alert("Erro", "Não foi possível excluir o lote."); 
+      Alert.alert("Erro", "Não foi possível excluir o Estoque SKU."); 
     }
   };
 
-  const renderItem: ListRenderItem<Lote> = ({ item }) => (
-    <LoteCard 
+  const renderItem: ListRenderItem<EstoqueSKU> = ({ item }) => (
+    <EstoqueCard 
       item={item} 
       onEdit={openEditModal}
       onDelete={openDeleteModal}
@@ -495,7 +445,7 @@ export default function LotesScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#0EA5E9" />
-        <Text style={styles.loadingText}>Carregando lotes...</Text>
+        <Text style={styles.loadingText}>Carregando inventário...</Text>
       </View>
     );
   }
@@ -505,28 +455,28 @@ export default function LotesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Gestão de Lotes</Text>
-          <Text style={styles.subtitle}>{lotes.length} lotes em produção</Text>
+          <Text style={styles.title}>Gestão de Estoque SKU</Text>
+          <Text style={styles.subtitle}>{estoque.length} SKUs em inventário</Text>
         </View>
         <Pressable style={styles.addButton} onPress={openAddModal}>
           <Ionicons name="add" size={24} color="#fff" />
-          <Text style={styles.addButtonText}>Novo Lote</Text>
+          <Text style={styles.addButtonText}>Novo SKU</Text>
         </Pressable>
       </View>
 
-      {/* Lista de Lotes */}
-      {lotes.length === 0 ? (
+      {/* Lista de Estoque */}
+      {estoque.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="fish" size={64} color="#CBD5E1" />
-          <Text style={styles.emptyTitle}>Nenhum lote cadastrado</Text>
-          <Text style={styles.emptyText}>Comece criando seu primeiro lote de produção</Text>
+          <Ionicons name="cube-outline" size={64} color="#CBD5E1" />
+          <Text style={styles.emptyTitle}>Nenhum SKU cadastrado</Text>
+          <Text style={styles.emptyText}>Crie um item de estoque para começar a gerenciar</Text>
           <Pressable style={styles.emptyButton} onPress={openAddModal}>
-            <Text style={styles.emptyButtonText}>Criar Primeiro Lote</Text>
+            <Text style={styles.emptyButtonText}>Criar Primeiro SKU</Text>
           </Pressable>
         </View>
       ) : (
         <FlatList 
-          data={lotes}
+          data={estoque}
           renderItem={renderItem}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
@@ -534,36 +484,36 @@ export default function LotesScreen() {
         />
       )}
 
-      {/* MODAL ADICIONAR/EDITAR LOTE */}
+      {/* MODAL ADICIONAR/EDITAR ESTOQUE SKU */}
       <Modal visible={isAddModalVisible || isEditModalVisible} animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
-              {currentLote ? 'Editar Lote' : 'Novo Lote'}
+              {currentSKU ? 'Editar Estoque SKU' : 'Novo Estoque SKU'}
             </Text>
             <Pressable onPress={() => { setIsAddModalVisible(false); setIsEditModalVisible(false); }}>
               <Ionicons name="close" size={24} color="#64748B" />
             </Pressable>
           </View>
           
-          <LoteForm
+          <EstoqueForm
             formState={formState}
             onFormChange={handleFormChange}
-            onSelectEspecie={() => setEspecieModalVisible(true)}
-            onSelectTanque={() => setTanqueModalVisible(true)}
-            selectedPeixe={selectedPeixe}
-            selectedTanque={selectedTanque}
-            isEditing={!!currentLote}
+            onSelectProduto={() => setProdutoModalVisible(true)}
+            onSelectLoja={() => setLojaModalVisible(true)}
+            selectedProduto={selectedProduto}
+            selectedLoja={selectedLoja}
+            isEditing={!!currentSKU}
           />
 
           <View style={styles.modalFooter}>
             <Pressable 
-              style={[styles.saveButton, (!formState.nomeLote || !formState.quantidade || !selectedTanque || !selectedPeixe) && styles.buttonDisabled]} 
-              onPress={handleAddOrUpdateLote}
-              disabled={!formState.nomeLote || !formState.quantidade || !selectedTanque || !selectedPeixe}
+              style={[styles.saveButton, (!selectedProduto || !selectedLoja || !formState.tamanho || !formState.cor || !formState.quantidade) && styles.buttonDisabled]} 
+              onPress={handleAddOrUpdateSKU}
+              disabled={!selectedProduto || !selectedLoja || !formState.tamanho || !formState.cor || !formState.quantidade}
             >
               <Text style={styles.saveButtonText}>
-                {currentLote ? 'Atualizar Lote' : 'Criar Lote'}
+                {currentSKU ? 'Atualizar Estoque' : 'Criar Estoque SKU'}
               </Text>
             </Pressable>
             <Pressable 
@@ -576,17 +526,17 @@ export default function LotesScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* MODAL EXCLUIR LOTE */}
+      {/* MODAL EXCLUIR ESTOQUE SKU */}
       <Modal visible={isDeleteModalVisible} transparent animationType="fade">
         <View style={styles.centeredModal}>
           <View style={styles.deleteModalContent}>
             <View style={styles.deleteHeader}>
               <Ionicons name="warning" size={32} color="#EF4444" />
-              <Text style={styles.deleteTitle}>Excluir Lote</Text>
+              <Text style={styles.deleteTitle}>Excluir Estoque SKU</Text>
             </View>
             
             <Text style={styles.deleteText}>
-              Tem certeza que deseja excluir o lote "{currentLote?.nomeLote}"? 
+              Tem certeza que deseja excluir o SKU de "{currentSKU?.nomeProduto}" (Tam: {currentSKU?.tamanho}, Cor: {currentSKU?.cor})? 
               Esta ação não pode ser desfeita.
             </Text>
 
@@ -604,7 +554,7 @@ export default function LotesScreen() {
             <View style={styles.deleteActions}>
               <Pressable 
                 style={[styles.confirmDeleteButton, !passwordInput && styles.buttonDisabled]}
-                onPress={handleDeleteLote}
+                onPress={handleDeleteSKU}
                 disabled={!passwordInput}
               >
                 <Text style={styles.confirmDeleteText}>Confirmar Exclusão</Text>
@@ -620,78 +570,78 @@ export default function LotesScreen() {
         </View>
       </Modal>
 
-      {/* MODAL SELECIONAR TANQUE */}
-      <Modal visible={tanqueModalVisible} animationType="slide" transparent>
+      {/* MODAL SELECIONAR LOJA/CD */}
+      <Modal visible={lojaModalVisible} animationType="slide" transparent>
         <View style={styles.centeredModal}>
           <View style={styles.selectionModalContent}>
             <View style={styles.selectionHeader}>
-              <Text style={styles.selectionTitle}>Selecionar Tanque</Text>
-              <Pressable onPress={() => setTanqueModalVisible(false)}>
+              <Text style={styles.selectionTitle}>Selecionar Loja / CD</Text>
+              <Pressable onPress={() => setLojaModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </Pressable>
             </View>
             
             <FlatList 
-              data={tanques}
+              data={lojas}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <Pressable 
                   style={[
                     styles.selectionItem,
-                    selectedTanque?.id === item.id && styles.selectedItem
+                    selectedLoja?.id === item.id && styles.selectedItem
                   ]} 
-                  onPress={() => handleSelectTanque(item)}
+                  onPress={() => handleSelectLoja(item)}
                 >
                   <View style={styles.selectionItemContent}>
-                    <Text style={styles.selectionItemText}>{item.name}</Text>
-                    <Text style={styles.selectionItemSubtext}>{item.location}</Text>
+                    <Text style={styles.selectionItemText}>{item.nome}</Text>
+                    <Text style={styles.selectionItemSubtext}>{item.localizacao} ({item.capacidadeEstoque.toLocaleString('pt-BR')} pares)</Text>
                   </View>
-                  {selectedTanque?.id === item.id && (
+                  {selectedLoja?.id === item.id && (
                     <Ionicons name="checkmark" size={20} color="#0EA5E9" />
                   )}
                 </Pressable>
               )} 
               ListEmptyComponent={
-                <Text style={styles.emptySelectionText}>Nenhum tanque cadastrado.</Text>
+                <Text style={styles.emptySelectionText}>Nenhuma loja/CD cadastrado.</Text>
               }
             />
           </View>
         </View>
       </Modal>
 
-      {/* MODAL SELECIONAR ESPÉCIE */}
-      <Modal visible={especieModalVisible} animationType="slide" transparent>
+      {/* MODAL SELECIONAR PRODUTO */}
+      <Modal visible={produtoModalVisible} animationType="slide" transparent>
         <View style={styles.centeredModal}>
           <View style={styles.selectionModalContent}>
             <View style={styles.selectionHeader}>
-              <Text style={styles.selectionTitle}>Selecionar Espécie</Text>
-              <Pressable onPress={() => setEspecieModalVisible(false)}>
+              <Text style={styles.selectionTitle}>Selecionar Produto</Text>
+              <Pressable onPress={() => setProdutoModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </Pressable>
             </View>
             
             <FlatList 
-              data={peixes}
+              data={produtos}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <Pressable 
                   style={[
                     styles.selectionItem,
-                    selectedPeixe?.id === item.id && styles.selectedItem
+                    selectedProduto?.id === item.id && styles.selectedItem
                   ]} 
-                  onPress={() => handleSelectPeixe(item)}
+                  onPress={() => handleSelectProduto(item)}
                 >
                   <View style={styles.selectionItemContent}>
-                    <Text style={styles.selectionItemText}>{item.nomePopular}</Text>
-                    <Text style={styles.selectionItemSubtext}>{item.nomeCientifico}</Text>
+                    <Text style={styles.selectionItemText}>{item.nomeModelo}</Text>
+                    <Text style={styles.selectionItemSubtext}>{item.marca} • R$ {item.precoBase.toFixed(2)}</Text>
                   </View>
-                  {selectedPeixe?.id === item.id && (
+                  {selectedProduto?.id === item.id && (
                     <Ionicons name="checkmark" size={20} color="#0EA5E9" />
                   )}
                 </Pressable>
               )} 
               ListEmptyComponent={
-                <Text style={styles.emptySelectionText}>Nenhuma espécie cadastrada.</Text>
+                <Text style={styles.emptySelectionText}>Nenhum produto cadastrado. Crie um na tela de Produtos.</Text>
               }
             />
           </View>
@@ -759,6 +709,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
+    marginTop: 40,
   },
   emptyTitle: {
     fontSize: 20,
@@ -790,7 +741,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
 
-  // Lote Card
+  // Estoque Card
   loteCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -825,6 +776,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '600',
+    textTransform: 'capitalize',
   },
   especieText: {
     fontSize: 14,
@@ -838,11 +790,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   metricItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    minWidth: '45%',
   },
   metricText: {
     fontSize: 12,
@@ -870,16 +825,7 @@ const styles = StyleSheet.create({
   faseText: {
     fontSize: 12,
     fontWeight: '600',
-  },
-  colheitaContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  colheitaText: {
-    fontSize: 12,
-    color: '#F59E0B',
-    fontWeight: '500',
+    textTransform: 'capitalize',
   },
   cardActions: {
     flexDirection: 'row',
